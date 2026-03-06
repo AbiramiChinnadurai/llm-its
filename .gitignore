@@ -1,0 +1,12 @@
+# Create .gitignore
+echo "__pycache__/
+*.pyc
+.env
+*.db
+*.faiss
+node_modules/
+.streamlit/secrets.toml
+models/
+*.gguf
+venv/
+.venv/" > .gitignore

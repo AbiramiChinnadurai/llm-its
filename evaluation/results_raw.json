@@ -1,0 +1,915 @@
+[
+  {
+    "variant": "B1",
+    "variant_label": "LLM-Only",
+    "profile": "P1",
+    "profile_name": "P1 \u2014 High Performer",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          80.0,
+          100.0,
+          90.0
+        ],
+        "qai": 10.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 2.44,
+        "lpcs": 3.86
+      },
+      "DBMS": {
+        "session_scores": [
+          80.0,
+          80.0,
+          80.0
+        ],
+        "qai": 0.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 2.16,
+        "lpcs": 3.66
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B1",
+    "variant_label": "LLM-Only",
+    "profile": "P2",
+    "profile_name": "P2 \u2014 Low Performer",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          40.0,
+          50.0,
+          60.0
+        ],
+        "qai": 20.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Arrays and Linked Lists",
+          "Trees and Binary Search Trees",
+          "Sorting Algorithms",
+          "Searching Algorithms",
+          "Graphs and Graph Traversal",
+          "Recursion",
+          "Time and Space Complexity",
+          "Dynamic Programming"
+        ],
+        "cas": 2.18,
+        "lpcs": 4.37
+      },
+      "DBMS": {
+        "session_scores": [
+          20.0,
+          50.0,
+          50.0
+        ],
+        "qai": 30.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Entity Relationship Model",
+          "SQL Queries and Commands",
+          "Normalization and Normal Forms",
+          "Transaction Management and ACID",
+          "Concurrency Control",
+          "Indexing and Hashing",
+          "Query Processing and Optimization",
+          "Database Security and Authorization"
+        ],
+        "cas": 2.44,
+        "lpcs": 4.29
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B1",
+    "variant_label": "LLM-Only",
+    "profile": "P3",
+    "profile_name": "P3 \u2014 Improving",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          30.0,
+          60.0,
+          70.0
+        ],
+        "qai": 40.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Recursion"
+        ],
+        "cas": 2.29,
+        "lpcs": 3.86
+      },
+      "DBMS": {
+        "session_scores": [
+          60.0,
+          60.0,
+          60.0
+        ],
+        "qai": 0.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Concurrency Control"
+        ],
+        "cas": 2.39,
+        "lpcs": 3.69
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B1",
+    "variant_label": "LLM-Only",
+    "profile": "P4",
+    "profile_name": "P4 \u2014 Declining",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          80.0,
+          70.0,
+          62.5
+        ],
+        "qai": -17.5,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Trees and Binary Search Trees",
+          "Graphs and Graph Traversal",
+          "Recursion"
+        ],
+        "cas": 2.24,
+        "lpcs": 4.06
+      },
+      "DBMS": {
+        "session_scores": [
+          70.0,
+          50.0,
+          66.67
+        ],
+        "qai": -3.33,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 2.27,
+        "lpcs": 3.68
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B1",
+    "variant_label": "LLM-Only",
+    "profile": "P5",
+    "profile_name": "P5 \u2014 Topic-Uneven",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          60.0,
+          50.0,
+          70.0
+        ],
+        "qai": 10.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Stacks and Queues",
+          "Sorting Algorithms",
+          "Recursion",
+          "Dynamic Programming"
+        ],
+        "cas": 2.44,
+        "lpcs": 4.18
+      },
+      "DBMS": {
+        "session_scores": [
+          40.0,
+          60.0,
+          30.0
+        ],
+        "qai": -10.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Weak",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "SQL Queries and Commands",
+          "Transaction Management and ACID",
+          "Indexing and Hashing",
+          "Database Security and Authorization"
+        ],
+        "cas": 2.26,
+        "lpcs": 3.97
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B2",
+    "variant_label": "RAG-Only",
+    "profile": "P1",
+    "profile_name": "P1 \u2014 High Performer",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          80.0,
+          80.0,
+          90.0
+        ],
+        "qai": 10.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.02,
+        "lpcs": 5.24
+      },
+      "DBMS": {
+        "session_scores": [
+          90.0,
+          90.0,
+          90.0
+        ],
+        "qai": 0.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.1,
+        "lpcs": 4.98
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B2",
+    "variant_label": "RAG-Only",
+    "profile": "P2",
+    "profile_name": "P2 \u2014 Low Performer",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          70.0,
+          60.0,
+          50.0
+        ],
+        "qai": -20.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Arrays and Linked Lists",
+          "Trees and Binary Search Trees",
+          "Searching Algorithms",
+          "Graphs and Graph Traversal",
+          "Hashing and Hash Tables",
+          "Recursion",
+          "Time and Space Complexity",
+          "Dynamic Programming"
+        ],
+        "cas": 4.0,
+        "lpcs": 5.55
+      },
+      "DBMS": {
+        "session_scores": [
+          0.0,
+          70.0,
+          30.0
+        ],
+        "qai": 30.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Weak",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Database Concepts and Architecture",
+          "Entity Relationship Model",
+          "SQL Queries and Commands",
+          "Normalization and Normal Forms",
+          "Transaction Management and ACID",
+          "Concurrency Control",
+          "Indexing and Hashing",
+          "Query Processing and Optimization",
+          "Database Security and Authorization"
+        ],
+        "cas": 4.08,
+        "lpcs": 5.68
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B2",
+    "variant_label": "RAG-Only",
+    "profile": "P3",
+    "profile_name": "P3 \u2014 Improving",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          60.0,
+          40.0,
+          12.5
+        ],
+        "qai": -47.5,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Weak",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Graphs and Graph Traversal"
+        ],
+        "cas": 4.18,
+        "lpcs": 5.33
+      },
+      "DBMS": {
+        "session_scores": [
+          70.0,
+          50.0,
+          70.0
+        ],
+        "qai": 0.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Query Processing and Optimization"
+        ],
+        "cas": 4.07,
+        "lpcs": 5.29
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B2",
+    "variant_label": "RAG-Only",
+    "profile": "P4",
+    "profile_name": "P4 \u2014 Declining",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          80.0,
+          60.0,
+          87.5
+        ],
+        "qai": 7.5,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.18,
+        "lpcs": 5.01
+      },
+      "DBMS": {
+        "session_scores": [
+          80.0,
+          40.0,
+          70.0
+        ],
+        "qai": -10.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Relational Model and Algebra"
+        ],
+        "cas": 4.23,
+        "lpcs": 5.32
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B2",
+    "variant_label": "RAG-Only",
+    "profile": "P5",
+    "profile_name": "P5 \u2014 Topic-Uneven",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          50.0,
+          20.0,
+          70.0
+        ],
+        "qai": 20.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Stacks and Queues",
+          "Sorting Algorithms",
+          "Graphs and Graph Traversal",
+          "Recursion",
+          "Dynamic Programming"
+        ],
+        "cas": 4.26,
+        "lpcs": 5.4
+      },
+      "DBMS": {
+        "session_scores": [
+          80.0,
+          40.0,
+          60.0
+        ],
+        "qai": -20.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Entity Relationship Model",
+          "Transaction Management and ACID"
+        ],
+        "cas": 4.18,
+        "lpcs": 5.36
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B3",
+    "variant_label": "RAG+Profile",
+    "profile": "P1",
+    "profile_name": "P1 \u2014 High Performer",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          90.0,
+          80.0,
+          80.0
+        ],
+        "qai": -10.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.17,
+        "lpcs": 7.37
+      },
+      "DBMS": {
+        "session_scores": [
+          90.0,
+          80.0,
+          100.0
+        ],
+        "qai": 10.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.14,
+        "lpcs": 7.58
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B3",
+    "variant_label": "RAG+Profile",
+    "profile": "P2",
+    "profile_name": "P2 \u2014 Low Performer",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          30.0,
+          30.0,
+          30.0
+        ],
+        "qai": 0.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Weak",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Arrays and Linked Lists",
+          "Stacks and Queues",
+          "Trees and Binary Search Trees",
+          "Sorting Algorithms",
+          "Searching Algorithms",
+          "Graphs and Graph Traversal",
+          "Hashing and Hash Tables",
+          "Recursion",
+          "Time and Space Complexity",
+          "Dynamic Programming"
+        ],
+        "cas": 4.11,
+        "lpcs": 7.72
+      },
+      "DBMS": {
+        "session_scores": [
+          50.0,
+          10.0,
+          30.0
+        ],
+        "qai": -20.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Weak",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Relational Model and Algebra",
+          "SQL Queries and Commands",
+          "Normalization and Normal Forms",
+          "Transaction Management and ACID",
+          "Concurrency Control",
+          "Indexing and Hashing",
+          "Database Security and Authorization"
+        ],
+        "cas": 4.07,
+        "lpcs": 7.9
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B3",
+    "variant_label": "RAG+Profile",
+    "profile": "P3",
+    "profile_name": "P3 \u2014 Improving",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          40.0,
+          60.0,
+          62.5
+        ],
+        "qai": 22.5,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Dynamic Programming"
+        ],
+        "cas": 4.05,
+        "lpcs": 7.39
+      },
+      "DBMS": {
+        "session_scores": [
+          40.0,
+          80.0,
+          80.0
+        ],
+        "qai": 40.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Strong",
+        "progressed": true,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.17,
+        "lpcs": 7.58
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B3",
+    "variant_label": "RAG+Profile",
+    "profile": "P4",
+    "profile_name": "P4 \u2014 Declining",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          80.0,
+          50.0,
+          50.0
+        ],
+        "qai": -30.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.22,
+        "lpcs": 7.58
+      },
+      "DBMS": {
+        "session_scores": [
+          90.0,
+          80.0,
+          75.0
+        ],
+        "qai": -15.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.08,
+        "lpcs": 7.23
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "B3",
+    "variant_label": "RAG+Profile",
+    "profile": "P5",
+    "profile_name": "P5 \u2014 Topic-Uneven",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          50.0,
+          70.0,
+          70.0
+        ],
+        "qai": 20.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Stacks and Queues",
+          "Graphs and Graph Traversal",
+          "Recursion",
+          "Dynamic Programming"
+        ],
+        "cas": 4.19,
+        "lpcs": 7.49
+      },
+      "DBMS": {
+        "session_scores": [
+          30.0,
+          50.0,
+          60.0
+        ],
+        "qai": 30.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Transaction Management and ACID"
+        ],
+        "cas": 4.31,
+        "lpcs": 7.53
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "Full",
+    "variant_label": "Full System",
+    "profile": "P1",
+    "profile_name": "P1 \u2014 High Performer",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          70.0,
+          70.0,
+          100.0
+        ],
+        "qai": 30.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Strong",
+        "progressed": true,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.37,
+        "lpcs": 8.32
+      },
+      "DBMS": {
+        "session_scores": [
+          70.0,
+          90.0,
+          100.0
+        ],
+        "qai": 30.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Strong",
+        "progressed": true,
+        "ael_triggers": 1,
+        "weak_topics": [],
+        "cas": 4.4,
+        "lpcs": 8.31
+      }
+    },
+    "ael_trigger_rate": 1.7
+  },
+  {
+    "variant": "Full",
+    "variant_label": "Full System",
+    "profile": "P2",
+    "profile_name": "P2 \u2014 Low Performer",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          30.0,
+          30.0,
+          40.0
+        ],
+        "qai": 10.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Weak",
+        "progressed": false,
+        "ael_triggers": 1,
+        "weak_topics": [
+          "Arrays and Linked Lists",
+          "Stacks and Queues",
+          "Sorting Algorithms",
+          "Searching Algorithms",
+          "Graphs and Graph Traversal",
+          "Hashing and Hash Tables",
+          "Recursion",
+          "Time and Space Complexity",
+          "Dynamic Programming"
+        ],
+        "cas": 4.41,
+        "lpcs": 8.65
+      },
+      "DBMS": {
+        "session_scores": [
+          30.0,
+          20.0,
+          50.0
+        ],
+        "qai": 20.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 2,
+        "weak_topics": [
+          "Database Concepts and Architecture",
+          "SQL Queries and Commands",
+          "Normalization and Normal Forms",
+          "Transaction Management and ACID",
+          "Concurrency Control",
+          "Indexing and Hashing",
+          "Query Processing and Optimization",
+          "Database Security and Authorization"
+        ],
+        "cas": 4.53,
+        "lpcs": 8.8
+      }
+    },
+    "ael_trigger_rate": 5.0
+  },
+  {
+    "variant": "Full",
+    "variant_label": "Full System",
+    "profile": "P3",
+    "profile_name": "P3 \u2014 Improving",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          30.0,
+          60.0,
+          70.0
+        ],
+        "qai": 40.0,
+        "s1_mastery": "Weak",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Sorting Algorithms"
+        ],
+        "cas": 4.4,
+        "lpcs": 8.32
+      },
+      "DBMS": {
+        "session_scores": [
+          50.0,
+          50.0,
+          62.5
+        ],
+        "qai": 12.5,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Moderate",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Entity Relationship Model",
+          "SQL Queries and Commands",
+          "Transaction Management and ACID"
+        ],
+        "cas": 4.47,
+        "lpcs": 8.43
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "Full",
+    "variant_label": "Full System",
+    "profile": "P4",
+    "profile_name": "P4 \u2014 Declining",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          80.0,
+          60.0,
+          37.5
+        ],
+        "qai": -42.5,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Weak",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "Arrays and Linked Lists"
+        ],
+        "cas": 4.42,
+        "lpcs": 8.2
+      },
+      "DBMS": {
+        "session_scores": [
+          90.0,
+          70.0,
+          20.0
+        ],
+        "qai": -70.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Weak",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [],
+        "cas": 4.37,
+        "lpcs": 8.19
+      }
+    },
+    "ael_trigger_rate": 0.0
+  },
+  {
+    "variant": "Full",
+    "variant_label": "Full System",
+    "profile": "P5",
+    "profile_name": "P5 \u2014 Topic-Uneven",
+    "subjects": {
+      "Data Structures": {
+        "session_scores": [
+          70.0,
+          80.0,
+          80.0
+        ],
+        "qai": 10.0,
+        "s1_mastery": "Moderate",
+        "s3_mastery": "Strong",
+        "progressed": true,
+        "ael_triggers": 1,
+        "weak_topics": [
+          "Stacks and Queues",
+          "Sorting Algorithms"
+        ],
+        "cas": 4.61,
+        "lpcs": 8.21
+      },
+      "DBMS": {
+        "session_scores": [
+          90.0,
+          60.0,
+          80.0
+        ],
+        "qai": -10.0,
+        "s1_mastery": "Strong",
+        "s3_mastery": "Strong",
+        "progressed": false,
+        "ael_triggers": 0,
+        "weak_topics": [
+          "SQL Queries and Commands",
+          "Transaction Management and ACID",
+          "Indexing and Hashing",
+          "Database Security and Authorization"
+        ],
+        "cas": 4.34,
+        "lpcs": 8.35
+      }
+    },
+    "ael_trigger_rate": 1.7
+  }
+]

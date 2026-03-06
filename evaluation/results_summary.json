@@ -1,0 +1,136 @@
+{
+  "summary": {
+    "B1": {
+      "label": "LLM-Only",
+      "mean_qai": 7.92,
+      "mean_cas": 2.31,
+      "smpr_pct": 0.0,
+      "mean_lpcs": 3.96,
+      "ael_trigger_rate": 0.0,
+      "progressed": 0,
+      "total_pairs": 10
+    },
+    "B2": {
+      "label": "RAG-Only",
+      "mean_qai": -3.0,
+      "mean_cas": 4.13,
+      "smpr_pct": 0.0,
+      "mean_lpcs": 5.32,
+      "ael_trigger_rate": 0.0,
+      "progressed": 0,
+      "total_pairs": 10
+    },
+    "B3": {
+      "label": "RAG+Profile",
+      "mean_qai": 4.75,
+      "mean_cas": 4.15,
+      "smpr_pct": 10.0,
+      "mean_lpcs": 7.54,
+      "ael_trigger_rate": 0.0,
+      "progressed": 1,
+      "total_pairs": 10
+    },
+    "Full": {
+      "label": "Full System",
+      "mean_qai": 3.0,
+      "mean_cas": 4.43,
+      "smpr_pct": 30.0,
+      "mean_lpcs": 8.38,
+      "ael_trigger_rate": 1.7,
+      "progressed": 3,
+      "total_pairs": 10
+    }
+  },
+  "qai_by_profile": {
+    "P1": {
+      "B1": {
+        "qai": 5.0,
+        "ael_rate": 0.0
+      },
+      "B2": {
+        "qai": 5.0,
+        "ael_rate": 0.0
+      },
+      "B3": {
+        "qai": 0.0,
+        "ael_rate": 0.0
+      },
+      "Full": {
+        "qai": 30.0,
+        "ael_rate": 1.7
+      }
+    },
+    "P2": {
+      "B1": {
+        "qai": 25.0,
+        "ael_rate": 0.0
+      },
+      "B2": {
+        "qai": 5.0,
+        "ael_rate": 0.0
+      },
+      "B3": {
+        "qai": -10.0,
+        "ael_rate": 0.0
+      },
+      "Full": {
+        "qai": 15.0,
+        "ael_rate": 5.0
+      }
+    },
+    "P3": {
+      "B1": {
+        "qai": 20.0,
+        "ael_rate": 0.0
+      },
+      "B2": {
+        "qai": -23.8,
+        "ael_rate": 0.0
+      },
+      "B3": {
+        "qai": 31.2,
+        "ael_rate": 0.0
+      },
+      "Full": {
+        "qai": 26.2,
+        "ael_rate": 0.0
+      }
+    },
+    "P4": {
+      "B1": {
+        "qai": -10.4,
+        "ael_rate": 0.0
+      },
+      "B2": {
+        "qai": -1.2,
+        "ael_rate": 0.0
+      },
+      "B3": {
+        "qai": -22.5,
+        "ael_rate": 0.0
+      },
+      "Full": {
+        "qai": -56.2,
+        "ael_rate": 0.0
+      }
+    },
+    "P5": {
+      "B1": {
+        "qai": 0.0,
+        "ael_rate": 0.0
+      },
+      "B2": {
+        "qai": 0.0,
+        "ael_rate": 0.0
+      },
+      "B3": {
+        "qai": 25.0,
+        "ael_rate": 0.0
+      },
+      "Full": {
+        "qai": 0.0,
+        "ael_rate": 1.7
+      }
+    }
+  }
+}

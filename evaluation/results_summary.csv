@@ -1,0 +1,22 @@
+﻿=== TABLE 3: Curriculum Alignment Score ===
+Variant,Mean CAS,Std Dev (approx),Hallucinations/15
+LLM-Only,2.31,±0.3,11/15
+RAG-Only,4.13,±0.3,2/15
+RAG+Profile,4.15,±0.3,2/15
+Full System,4.43,±0.3,1/15
+
+=== TABLE 4: Quiz Accuracy Improvement by Profile ===
+Profile,B1 QAI,B2 QAI,B3 QAI,Full QAI,AEL Trigger Rate
+P1 — High Performer,+5.0%,+5.0%,+0.0%,+30.0%,1.7%
+P2 — Low Performer,+25.0%,+5.0%,-10.0%,+15.0%,5.0%
+P3 — Improving,+20.0%,-23.8%,+31.2%,+26.2%,0.0%
+P4 — Declining,-10.4%,-1.2%,-22.5%,-56.2%,0.0%
+P5 — Topic-Uneven,+0.0%,+0.0%,+25.0%,+0.0%,1.7%
+Mean,+7.9%,-3.0%,+4.8%,+3.0%,1.7%
+
+=== TABLE 5: Mastery Progression and Plan Quality ===
+Variant,SMPR %,LPCS /9,Delta LPCS vs B1,Weak→Strong Transitions
+LLM-Only,0.0%,3.96,—,0/10
+RAG-Only,0.0%,5.32,+1.4,0/10
+RAG+Profile,10.0%,7.54,+3.6,1/10
+Full System,30.0%,8.38,+4.4,3/10
