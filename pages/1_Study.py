@@ -7,10 +7,10 @@ Enhanced with Mind Map, Smart Hints, and Socratic Tutor.
 import streamlit as st
 import time
 import json
-import ollama
+from groq import Groq
 from database.db import (get_subject_summary, get_error_topics,
                           get_ael_modality, get_topics,
-                          log_hint_usage, save_socratic_session, get_socratic_sessions)
+                          log_hint_usage, save_socratic_session, get_socratic_history)
 from rag.rag_pipeline import retrieve_chunks, format_context, index_exists
 from llm.llm_engine import generate_explanation, MODALITY_LABELS, MODEL_NAME
 
@@ -120,20 +120,24 @@ if "selected_topic" not in st.session_state: st.session_state.selected_topic = N
 
 # ── Ollama helper (free, local) ───────────────────────────────────────────────
 def call_llm(system_prompt, messages, max_tokens=1000):
-    """Call local Ollama LLaMA3 — completely free, no API key needed."""
+    """Call Groq API (LLaMA3 8B) — free, fast, no local setup needed."""
     try:
-        conversation = f"{system_prompt}\n\n"
-        for msg in messages:
-            role = "User" if msg["role"] == "user" else "Assistant"
-            conversation += f"{role}: {msg['content']}\n"
-        conversation += "Assistant:"
-
-        response = ollama.generate(
+        import os
+        try:
+            api_key = st.secrets["GROQ_API_KEY"]
+        except Exception:
+            api_key = os.environ.get("GROQ_API_KEY", "")
+        client = Groq(api_key=api_key)
+        # Build messages with system prompt
+        groq_messages = [{"role": "system", "content": system_prompt}]
+        groq_messages += [{"role": m["role"], "content": m["content"]} for m in messages]
+        response = client.chat.completions.create(
             model=MODEL_NAME,
-            prompt=conversation,
-            options={"temperature": 0.7, "top_p": 0.9, "num_predict": max_tokens}
+            messages=groq_messages,
+            temperature=0.7,
+            max_tokens=max_tokens,
         )
-        return response["response"].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"[LLM Error: {e}]"
 
@@ -250,17 +254,8 @@ def render_socratic_tutor(uid, subject, topic):
 
     session_key = f"socratic_{uid}_{subject}_{topic}"
     if session_key not in st.session_state:
-        history = get_socratic_sessions(uid, subject)
-        # Filter for the specific topic, assuming the history messages are structured that way or just load them if any.
-        # Looking at get_socratic_sessions in db.py: it returns a list of sessions. 
-        # We need to extract the `messages` array for this specific topic if a session exists.
-        topic_history = []
-        for sess in history:
-            if sess["topic"] == topic:
-                import json
-                topic_history = json.loads(sess["messages"])
-                break
-        st.session_state[session_key] = topic_history
+        history = get_socratic_history(uid, subject, topic)
+        st.session_state[session_key] = history if history else []
 
     messages = st.session_state[session_key]
 
