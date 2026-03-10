@@ -26,16 +26,17 @@ html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
 .quiz-header {
     background: linear-gradient(160deg, #0d1524 0%, #080c14 60%);
     border: 1px solid #1a2540; border-radius: 20px;
-    padding: 28px 36px; margin-bottom: 28px; position: relative; overflow: hidden;
+    padding: 32px 40px; margin-bottom: 32px;
+    position: relative; overflow: hidden;
 }
 .quiz-header::after {
     content: 'QUIZ'; position: absolute; right: 32px; top: 50%;
     transform: translateY(-50%); font-family: 'Syne', sans-serif;
     font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.025);
-    letter-spacing: 0.15em; pointer-events: none;
+    letter-spacing: 0.15em; pointer-events: none; user-select: none;
 }
-.quiz-title { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
-.quiz-sub   { color:#4a6080; font-size:0.88rem; margin:0; }
+.quiz-title { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
+.quiz-sub   { color:#4a6080; font-size:0.88rem; margin:0; font-weight:300; }
 
 /* Mode tabs */
 .mode-tab-row { display:flex; gap:10px; margin-bottom:24px; }
@@ -121,13 +122,13 @@ html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
     transition:all 0.2s !important; border:1px solid #1a2540 !important;
     background:#0d1524 !important; color:#8090a8 !important;
 }
-.stButton > button:hover { background:#101b2e !important; border-color:#2a4060 !important; color:#d4dbe8 !important; }
+.stButton > button:hover { background:#1a2540 !important; border-color:#3b82f6 !important; color:#f0f4ff !important; transform: translateY(-2px) !important; }
 button[kind="primary"] {
-    background:linear-gradient(135deg,#1d4ed8,#1e3a8a) !important;
-    border-color:#2563eb !important; color:#fff !important; font-weight:600 !important;
+    background:linear-gradient(135deg,#2563eb,#1d4ed8) !important;
+    border-color:#3b82f6 !important; color:#fff !important; font-weight:600 !important;
 }
 button[kind="primary"]:hover {
-    background:linear-gradient(135deg,#2563eb,#1d4ed8) !important;
+    background:linear-gradient(135deg,#3b82f6,#2563eb) !important;
     box-shadow:0 4px 20px rgba(37,99,235,0.35) !important;
 }
 hr { border-color:#1a2540 !important; }
@@ -163,9 +164,16 @@ def call_llm(prompt, max_tokens=600):
     try:
         import os
         try:
+            # First try direct access
             api_key = st.secrets["GROQ_API_KEY"]
         except Exception:
-            api_key = os.environ.get("GROQ_API_KEY", "")
+            try:
+                # Then try inside the [supabase] block if the user put it there
+                api_key = st.secrets["supabase"]["GROQ_API_KEY"]
+            except Exception:
+                # Fallback to environment variable
+                api_key = os.environ.get("GROQ_API_KEY", "")
+                
         client   = Groq(api_key=api_key)
         response = client.chat.completions.create(
             model=MODEL_NAME,

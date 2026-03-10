@@ -19,8 +19,44 @@ uid      = st.session_state.uid
 profile  = st.session_state.profile
 subjects = profile.get("subjects_list") or profile.get("subject_list", "").split(",")
 
-st.title("📊 Learning Analytics Dashboard")
-st.caption("Track your progress, mastery levels, and how the Adaptive Explanation Loop is helping you.")
+# ── CSS ───────────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
+
+html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
+.stApp { background: #080c14; color: #d4dbe8; }
+
+.hud-header {
+    background: linear-gradient(160deg, #0d1524 0%, #080c14 60%);
+    border: 1px solid #1a2540; border-radius: 20px;
+    padding: 32px 40px; margin-bottom: 32px;
+    position: relative; overflow: hidden;
+}
+.hud-header::after {
+    content: 'ANALYTICS'; position: absolute; right: 32px; top: 50%;
+    transform: translateY(-50%); font-family: 'Syne', sans-serif;
+    font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.025);
+    letter-spacing: 0.15em; pointer-events: none; user-select: none;
+}
+.hud-title { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
+.hud-sub   { color:#4a6080; font-size:0.88rem; margin:0; font-weight:300; }
+
+.hud-cell { background:#0d1524; border:1px solid #1a2540; border-radius:14px; padding:18px 20px; position:relative; overflow:hidden; }
+.hud-cell::before { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:linear-gradient(90deg,#3b82f6,#1d4ed8); }
+.hud-num { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; line-height:1; margin-bottom:4px; color:#f0f6ff; }
+.hud-label { font-size:0.7rem; color:#4a6080; text-transform:uppercase; letter-spacing:0.1em; font-weight:600; }
+
+hr { border-color:#1a2540 !important; }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="hud-header">
+    <h1 class="hud-title">📊 Learning Analytics Dashboard</h1>
+    <p class="hud-sub">Track your progress, mastery levels, and how the Adaptive Explanation Loop is helping you.</p>
+</div>
+""", unsafe_allow_html=True)
 
 summaries = get_subject_summary(uid)
 history   = get_quiz_history(uid)
@@ -34,12 +70,24 @@ df["timestamp"] = pd.to_datetime(df["timestamp"])
 df["session_num"] = df.groupby("subject").cumcount() + 1
 
 # ── Row 1: Key Metrics ────────────────────────────────────────────────────────
-st.subheader("🏆 Overall Performance")
+st.markdown('<div class="hud-label" style="font-size:1rem; margin-bottom:16px; color:#d4dbe8;">🏆 Overall Performance</div>', unsafe_allow_html=True)
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Attempts",   len(df))
-col2.metric("Overall Accuracy", f"{df['accuracy_pct'].mean():.1f}%")
-col3.metric("Subjects Studied", df["subject"].nunique())
-col4.metric("Strong Subjects",  len([s for s in summaries if s["strength_label"] == "Strong"]))
+
+metrics = [
+    ("Total Attempts", len(df)),
+    ("Overall Accuracy", f"{df['accuracy_pct'].mean():.1f}%"),
+    ("Subjects Studied", df["subject"].nunique()),
+    ("Strong Subjects", len([s for s in summaries if s["strength_label"] == "Strong"]))
+]
+
+for col, (label, val) in zip([col1, col2, col3, col4], metrics):
+    with col:
+        st.markdown(f"""
+        <div class="hud-cell">
+            <div class="hud-num">{val}</div>
+            <div class="hud-label">{label}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 st.divider()
 
@@ -64,7 +112,11 @@ with col_a:
         fig.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
         fig.add_hline(y=75, line_dash="dash", line_color="#2ecc71", annotation_text="Strong (75%)")
         fig.add_hline(y=50, line_dash="dash", line_color="#f39c12", annotation_text="Moderate (50%)")
-        fig.update_layout(showlegend=True, height=350)
+        fig.update_layout(
+            showlegend=True, height=350,
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#d4dbe8', family='Instrument Sans')
+        )
         st.plotly_chart(fig, use_container_width=True)
 
 with col_b:
@@ -82,7 +134,11 @@ with col_b:
     )
     fig2.add_hline(y=75, line_dash="dash", line_color="#2ecc71")
     fig2.add_hline(y=50, line_dash="dash", line_color="#f39c12")
-    fig2.update_layout(height=350)
+    fig2.update_layout(
+        height=350,
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#d4dbe8', family='Instrument Sans')
+    )
     st.plotly_chart(fig2, use_container_width=True)
 
 st.divider()

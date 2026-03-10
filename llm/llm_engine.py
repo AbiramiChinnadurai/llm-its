@@ -13,12 +13,16 @@ import re
 import streamlit as st
 from groq import Groq
 
-MODEL_NAME = "llama3-8b-8192"  # LLaMA3 8B on Groq — same model as Ollama
+MODEL_NAME = "llama-3.1-8b-instant"  # Updated active LLaMA3 8B model on Groq
 
 # ── Client ────────────────────────────────────────────────────────────────────
 def get_client():
     try:
-        api_key = st.secrets["GROQ_API_KEY"]
+        # Check if it's placed under the [supabase] block by mistake or intentionally
+        if "supabase" in st.secrets and "GROQ_API_KEY" in st.secrets["supabase"]:
+            api_key = st.secrets["supabase"]["GROQ_API_KEY"]
+        else:
+            api_key = st.secrets["GROQ_API_KEY"]
     except Exception:
         api_key = os.environ.get("GROQ_API_KEY", "")
     if not api_key:

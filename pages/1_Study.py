@@ -10,7 +10,7 @@ import json
 from groq import Groq
 from database.db import (get_subject_summary, get_error_topics,
                           get_ael_modality, get_topics,
-                          log_hint_usage, save_socratic_session, get_socratic_history)
+                          log_hint_usage, save_socratic_session, get_socratic_sessions)
 from rag.rag_pipeline import retrieve_chunks, format_context, index_exists
 from llm.llm_engine import generate_explanation, MODALITY_LABELS, MODEL_NAME
 
@@ -19,38 +19,35 @@ st.set_page_config(page_title="Study | LLM-ITS", page_icon="📖", layout="wide"
 # ── Professional CSS ──────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;1,300&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
 
-html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
-.stApp { background: #0f1117; color: #e8e8e8; }
+html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
+.stApp { background: #080c14; color: #d4dbe8; }
 
-.study-header {
-    background: linear-gradient(135deg, #1a1f2e 0%, #12161f 100%);
-    border: 1px solid #2a3040; border-radius: 16px;
-    padding: 28px 36px; margin-bottom: 24px;
+.hud-header {
+    background: linear-gradient(160deg, #0d1524 0%, #080c14 60%);
+    border: 1px solid #1a2540; border-radius: 20px;
+    padding: 32px 40px; margin-bottom: 32px;
     position: relative; overflow: hidden;
 }
-.study-header::before {
-    content: ''; position: absolute; top: -40px; right: -40px;
-    width: 160px; height: 160px;
-    background: radial-gradient(circle, rgba(99,179,237,0.12) 0%, transparent 70%);
-    border-radius: 50%;
+.hud-header::after {
+    content: 'STUDY'; position: absolute; right: 32px; top: 50%;
+    transform: translateY(-50%); font-family: 'Syne', sans-serif;
+    font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.025);
+    letter-spacing: 0.15em; pointer-events: none; user-select: none;
 }
-.study-header h1 {
-    font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 600;
-    color: #f0f4ff; margin: 0 0 4px 0; letter-spacing: -0.5px;
-}
-.study-header p { color: #7a8499; font-size: 0.9rem; margin: 0; font-weight: 300; }
+.hud-title { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
+.hud-sub   { color:#4a6080; font-size:0.88rem; margin:0; font-weight:300; }
 
 .stButton > button {
-    border-radius: 10px !important; font-family: 'DM Sans', sans-serif !important;
+    border-radius: 10px !important; font-family: 'Instrument Sans', sans-serif !important;
     font-size: 0.82rem !important; font-weight: 400 !important;
-    transition: all 0.18s ease !important; border: 1px solid #2a3040 !important;
-    background: #161b27 !important; color: #c0c8dc !important; text-align: left !important;
+    transition: all 0.18s ease !important; border: 1px solid #1a2540 !important;
+    background: #0d1524 !important; color: #d4dbe8 !important; text-align: left !important;
 }
 .stButton > button:hover {
-    background: #1e2535 !important; border-color: #63b3ed !important;
-    color: #f0f4ff !important; transform: translateX(3px) !important;
+    background: #1a2540 !important; border-color: #3b82f6 !important;
+    color: #f0f4ff !important; transform: translateY(-2px) !important;
 }
 button[kind="primary"] {
     background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
@@ -62,16 +59,16 @@ button[kind="primary"]:hover {
 }
 
 section[data-testid="stSidebar"] {
-    background: #0d1018 !important; border-right: 1px solid #1e2535;
+    background: #080c14 !important; border-right: 1px solid #1a2540;
 }
 .sidebar-label {
-    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.12em;
-    text-transform: uppercase; color: #4a5568; margin: 20px 0 8px 0;
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #4a6080; margin: 20px 0 8px 0;
 }
 .ael-badge {
     display: inline-flex; align-items: center; gap: 8px;
-    background: #1a2235; border: 1px solid #2d3a52; border-radius: 20px;
-    padding: 6px 14px; font-size: 0.8rem; color: #93c5fd; font-weight: 500; margin-top: 6px;
+    background: #0d1524; border: 1px solid #1a2540; border-radius: 20px;
+    padding: 6px 14px; font-size: 0.8rem; color: #3b82f6; font-weight: 500; margin-top: 6px;
 }
 .ael-dot {
     width: 8px; height: 8px; border-radius: 50%;
@@ -80,11 +77,11 @@ section[data-testid="stSidebar"] {
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 [data-testid="stChatMessage"] {
-    background: #161b27 !important; border: 1px solid #1e2a3a !important;
+    background: #0d1524 !important; border: 1px solid #1a2540 !important;
     border-radius: 14px !important; margin-bottom: 12px !important; padding: 16px !important;
 }
 [data-testid="stChatInput"] {
-    background: #161b27 !important; border: 1px solid #2a3040 !important; border-radius: 14px !important;
+    background: #0d1524 !important; border: 1px solid #1a2540 !important; border-radius: 14px !important;
 }
 [data-testid="stChatInput"]:focus-within {
     border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.1) !important;
@@ -93,16 +90,16 @@ section[data-testid="stSidebar"] {
     display: inline-block; background: #2d1a1a; border: 1px solid #7f1d1d;
     color: #f87171; border-radius: 6px; padding: 3px 10px; font-size: 0.75rem; margin: 3px 2px;
 }
-.meta-row { display: flex; gap: 14px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #1e2535; }
+.meta-row { display: flex; gap: 14px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #1a2540; }
 .meta-pill {
-    background: #161b27; border: 1px solid #1e2535; border-radius: 6px;
-    padding: 3px 10px; font-size: 0.73rem; color: #6b7a99;
+    background: #0d1524; border: 1px solid #1a2540; border-radius: 6px;
+    padding: 3px 10px; font-size: 0.73rem; color: #4a6080;
 }
-.status-indexed { background:#0d2818; border:1px solid #166534; color:#4ade80; border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:500; }
-.status-missing  { background:#2d1a0a; border:1px solid #92400e; color:#fb923c; border-radius:8px; padding:6px 12px; font-size:0.78rem; }
-hr { border-color: #1e2535 !important; }
-[data-baseweb="select"] { background: #161b27 !important; border-color: #2a3040 !important; border-radius: 10px !important; }
-[data-baseweb="input"]  { background: #161b27 !important; border-color: #2a3040 !important; border-radius: 10px !important; }
+.status-indexed { background:#064e2e; border:1px solid #10b981; color:#34d399; border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:500; }
+.status-missing  { background:#1c1005; border:1px solid #92400e; color:#fbbf24; border-radius:8px; padding:6px 12px; font-size:0.78rem; }
+hr { border-color: #1a2540 !important; }
+[data-baseweb="select"] { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
+[data-baseweb="input"]  { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -124,9 +121,16 @@ def call_llm(system_prompt, messages, max_tokens=1000):
     try:
         import os
         try:
+            # First try direct access
             api_key = st.secrets["GROQ_API_KEY"]
         except Exception:
-            api_key = os.environ.get("GROQ_API_KEY", "")
+            try:
+                # Then try inside the [supabase] block if the user put it there
+                api_key = st.secrets["supabase"]["GROQ_API_KEY"]
+            except Exception:
+                # Fallback to environment variable
+                api_key = os.environ.get("GROQ_API_KEY", "")
+                
         client = Groq(api_key=api_key)
         # Build messages with system prompt
         groq_messages = [{"role": "system", "content": system_prompt}]
@@ -254,7 +258,7 @@ def render_socratic_tutor(uid, subject, topic):
 
     session_key = f"socratic_{uid}_{subject}_{topic}"
     if session_key not in st.session_state:
-        history = get_socratic_history(uid, subject, topic)
+        history = get_socratic_sessions(uid, subject, topic)
         st.session_state[session_key] = history if history else []
 
     messages = st.session_state[session_key]
@@ -380,9 +384,9 @@ with col_main:
 
     if not selected_topic:
         st.markdown("""
-        <div style="text-align:center; padding:60px 20px; color:#4a5568;">
+        <div style="text-align:center; padding:60px 20px; color:#4a6080;">
             <div style="font-size:3rem; margin-bottom:16px;">👈</div>
-            <div style="font-family:'Fraunces',serif; font-size:1.4rem; color:#6b7a99; margin-bottom:8px;">
+            <div style="font-family:'Syne',sans-serif; font-size:1.4rem; color:#6b7a99; margin-bottom:8px;">
                 Select a topic to begin
             </div>
             <div style="font-size:0.85rem;">Choose from the topic list on the left to start a study session</div>
@@ -396,7 +400,7 @@ with col_main:
     hcol1, hcol2, hcol3 = st.columns([4, 1, 1])
     with hcol1:
         st.markdown(f"""
-        <div style="font-family:'Fraunces',serif; font-size:1.5rem; font-weight:600;
+        <div style="font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:800;
                     color:#f0f4ff; padding: 4px 0 12px 0; letter-spacing:-0.3px;">
             {selected_topic}
         </div>

@@ -46,17 +46,45 @@ with st.sidebar:
         st.page_link("pages/4_Dashboard.py",      label="📊 Dashboard",       icon="📊")
         st.page_link("pages/5_UploadSyllabus.py", label="📄 Upload Syllabus", icon="📄")
 
+# ── CSS ───────────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
+
+html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
+.stApp { background: #080c14; color: #d4dbe8; }
+
+.hud-header {
+    background: linear-gradient(160deg, #0d1524 0%, #080c14 60%);
+    border: 1px solid #1a2540; border-radius: 20px;
+    padding: 32px 40px; margin-bottom: 32px;
+    position: relative; overflow: hidden;
+}
+.hud-header::after {
+    content: 'LLM-ITS'; position: absolute; right: 32px; top: 50%;
+    transform: translateY(-50%); font-family: 'Syne', sans-serif;
+    font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.025);
+    letter-spacing: 0.15em; pointer-events: none; user-select: none;
+}
+.hud-title { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
+.hud-sub   { color:#4a6080; font-size:0.88rem; margin:0; font-weight:300; }
+
+.day-card {
+    background: #0d1524; border: 1px solid #1a2540;
+    border-radius: 14px; padding: 20px;
+    transition: all 0.3s;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ── Main page ─────────────────────────────────────────────────────────────────
 if not st.session_state.uid:
-    st.title("🎓 Welcome to the LLM Intelligent Tutoring System")
     st.markdown("""
-    An AI-powered tutor that:
-    - 📚 Learns from **your uploaded syllabus** (no hallucination)
-    - 🧠 Tracks your **quiz performance** across sessions
-    - 🔄 Adapts **how it explains** concepts when you struggle *(AEL)*
-    - 🗓️ Generates a **personalized study plan** based on your progress
-    """)
-    st.divider()
+    <div class="hud-header">
+        <h1 class="hud-title">🎓 Intelligent Tutoring System</h1>
+        <p class="hud-sub">An AI-powered tutor that learns from your uploaded syllabus (no hallucination), tracks your quiz performance across sessions, adapts how it explains concepts when you struggle, and generates a personalized study plan based on your progress.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["🆕 Register", "🔑 Login"])
 

@@ -677,19 +677,37 @@ def save_socratic_session(uid, subject, topic, messages):
     conn.commit()
     conn.close()
 
-def get_socratic_sessions(uid, subject=None):
+def get_socratic_sessions(uid, subject=None, topic=None):
     conn = get_connection()
     c = conn.cursor()
+    
+    query = "SELECT * FROM socratic_sessions WHERE uid=%s"
+    params = [uid]
+    
     if subject:
-        c.execute("""
-            SELECT * FROM socratic_sessions WHERE uid=%s AND subject=%s
-            ORDER BY timestamp DESC
-        """, (uid, subject))
-    else:
-        c.execute("""
-            SELECT * FROM socratic_sessions WHERE uid=%s
-            ORDER BY timestamp DESC
-        """, (uid,))
+        query += " AND subject=%s"
+        params.append(subject)
+        
+    if topic:
+        query += " AND topic=%s"
+        params.append(topic)
+        
+    query += " ORDER BY timestamp DESC"
+    
+    c.execute(query, tuple(params))
     rows = c.fetchall()
     conn.close()
+    
+    if not rows:
+        return []
+        
+    # We want to return the messages from the most recent session for that topic
+    # If no topic specified, we just return the full rows
+    if topic and rows:
+        import json
+        try:
+            return json.loads(rows[0]["messages"])
+        except:
+            return []
+            
     return [dict(r) for r in rows]

@@ -18,28 +18,99 @@ if not st.session_state.get("uid"):
 profile  = st.session_state.profile
 subjects = profile.get("subjects_list") or profile.get("subject_list", "").split(",")
 
-st.title("📄 Upload Syllabus / Curriculum PDF")
-st.caption("Upload your subject PDFs. Topics are auto-detected from chapter/section headings.")
-st.divider()
+# ── CSS ───────────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
+
+html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
+.stApp { background: #080c14; color: #d4dbe8; }
+
+.hud-header {
+    background: linear-gradient(160deg, #0d1524 0%, #080c14 60%);
+    border: 1px solid #1a2540; border-radius: 20px;
+    padding: 32px 40px; margin-bottom: 32px;
+    position: relative; overflow: hidden;
+}
+.hud-header::after {
+    content: 'UPLOAD'; position: absolute; right: 32px; top: 50%;
+    transform: translateY(-50%); font-family: 'Syne', sans-serif;
+    font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.025);
+    letter-spacing: 0.15em; pointer-events: none; user-select: none;
+}
+.hud-title { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
+.hud-sub   { color:#4a6080; font-size:0.88rem; margin:0; font-weight:300; }
+
+.hud-cell { background:#0d1524; border:1px solid #1a2540; border-radius:14px; padding:18px 20px; position:relative; overflow:hidden; }
+.hud-cell::before { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; }
+.hud-cell.completed::before { background:linear-gradient(90deg,#10b981,#059669); }
+.hud-cell.pending::before   { background:linear-gradient(90deg,#3b82f6,#1d4ed8); }
+.hud-cell.missing::before   { background:linear-gradient(90deg,#ef4444,#dc2626); }
+
+.hud-num { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; line-height:1; margin-bottom:4px; color:#f0f6ff; }
+.hud-label { font-size:0.7rem; color:#4a6080; text-transform:uppercase; letter-spacing:0.1em; font-weight:600; }
+
+.stButton > button {
+    border-radius:10px !important; font-family:'Instrument Sans',sans-serif !important;
+    font-size:0.84rem !important; font-weight:500 !important;
+    transition:all 0.2s !important; border:1px solid #1a2540 !important;
+    background:#0d1524 !important; color:#8090a8 !important;
+}
+.stButton > button:hover { background:#1a2540 !important; border-color:#3b82f6 !important; color:#d4dbe8 !important; transform: translateY(-2px) !important; }
+button[kind="primary"] {
+    background:linear-gradient(135deg,#2563eb,#1d4ed8) !important;
+    border-color:#3b82f6 !important; color:#fff !important; font-weight:600 !important;
+}
+button[kind="primary"]:hover {
+    background:linear-gradient(135deg,#3b82f6,#2563eb) !important;
+    box-shadow:0 4px 20px rgba(37,99,235,0.35) !important;
+}
+hr { border-color:#1a2540 !important; }
+[data-baseweb="select"] { background:#0d1524 !important; border-color:#1a2540 !important; border-radius:10px !important; }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="hud-header">
+    <h1 class="hud-title">📄 Upload Syllabus / Curriculum PDF</h1>
+    <p class="hud-sub">Upload your subject PDFs. Topics are auto-detected from chapter/section headings.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ── Subject status cards ──────────────────────────────────────────────────────
-st.subheader("📚 Subject Status")
+st.markdown('<div class="hud-label" style="font-size:1rem; margin-bottom:16px; color:#d4dbe8;">📚 Subject Status</div>', unsafe_allow_html=True)
 cols = st.columns(len(subjects))
 for col, subj in zip(cols, subjects):
     indexed    = index_exists(subj)
     has_topics = topics_exist(subj)
     topic_count = len(get_topics(subj))
-    if indexed and has_topics:
-        col.success(f"✅ {subj}\n{topic_count} topics ready")
-    elif indexed:
-        col.warning(f"⚠️ {subj}\nIndexed — no topics")
-    else:
-        col.error(f"❌ {subj}\nNot set up yet")
+    with col:
+        if indexed and has_topics:
+            st.markdown(f"""
+            <div class="hud-cell completed">
+                <div class="hud-num">{topic_count}</div>
+                <div class="hud-label" style="color:#10b981;">✅ {subj} REAdY</div>
+            </div>
+            """, unsafe_allow_html=True)
+        elif indexed:
+            st.markdown(f"""
+            <div class="hud-cell pending">
+                <div class="hud-num">0</div>
+                <div class="hud-label" style="color:#3b82f6;">⚠️ {subj} (NO TOPICS)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="hud-cell missing">
+                <div class="hud-num">--</div>
+                <div class="hud-label" style="color:#ef4444;">❌ {subj} (NOT SET UP)</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 st.divider()
 
 # ── Upload form ───────────────────────────────────────────────────────────────
-st.subheader("⬆️ Upload PDF")
+st.markdown('<div class="hud-label" style="font-size:1rem; margin-bottom:16px; color:#d4dbe8;">⬆️ Upload PDF</div>', unsafe_allow_html=True)
 selected_subject = st.selectbox("Select Subject for this PDF", subjects)
 uploaded_file    = st.file_uploader("Choose a PDF file", type=["pdf"])
 
@@ -79,7 +150,7 @@ if uploaded_file:
 
 # ── Show existing topics ──────────────────────────────────────────────────────
 st.divider()
-st.subheader("📋 Extracted Topics by Subject")
+st.markdown('<div class="hud-label" style="font-size:1rem; margin-bottom:16px; color:#d4dbe8;">📋 Extracted Topics by Subject</div>', unsafe_allow_html=True)
 for subj in subjects:
     topics = get_topics(subj)
     if topics:
