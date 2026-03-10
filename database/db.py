@@ -1,34 +1,54 @@
 """
 database/db.py
-SQLite persistence layer — creates and manages all 4 tables from the paper:
-  1. learner_profile
-  2. quiz_attempts
-  3. subject_summary
-  4. learning_plans
+PostgreSQL (Supabase) persistence layer — drop-in replacement for SQLite version.
+All function signatures are identical to the original.
+
+Setup:
+  1. pip install psycopg2-binary
+  2. Add to .streamlit/secrets.toml:
+       [supabase]
+       DATABASE_URL = "postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres"
+  3. Or set environment variable: DATABASE_URL=...
 """
 
-import sqlite3
 import os
+import psycopg2
+import psycopg2.extras
+import streamlit as st
 from datetime import datetime
 
-DB_PATH = "llm_its.db"
-
+# ── CONNECTION ────────────────────────────────────────────────────────────────
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    """
+    Reads DATABASE_URL from Streamlit secrets (preferred) or env var.
+    Uses RealDictCursor so rows behave like dicts (same as sqlite3.Row).
+    """
+    try:
+        db_url = st.secrets["supabase"]["DATABASE_URL"]
+    except Exception:
+        db_url = os.environ.get("DATABASE_URL")
+
+    if not db_url:
+        raise RuntimeError(
+            "DATABASE_URL not found. Add it to .streamlit/secrets.toml under [supabase]."
+        )
+
+    conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.RealDictCursor)
     return conn
 
 
+# ── INIT DB ───────────────────────────────────────────────────────────────────
+
 def init_db():
-    """Create all tables and triggers on first run."""
+    """Create all tables on first run. Safe to call multiple times (IF NOT EXISTS)."""
     conn = get_connection()
     c = conn.cursor()
 
     # ── Table 1: learner_profile ──────────────────────────────────────
     c.execute("""
     CREATE TABLE IF NOT EXISTS learner_profile (
-        uid             INTEGER PRIMARY KEY AUTOINCREMENT,
+        uid             SERIAL PRIMARY KEY,
         name            TEXT NOT NULL,
         age             INTEGER,
         education_level TEXT,
@@ -36,13 +56,13 @@ def init_db():
         daily_hours     REAL DEFAULT 2.0,
         deadline        TEXT,
         learning_goals  TEXT,
-        created_at      TEXT DEFAULT (datetime('now'))
+        created_at      TIMESTAMP DEFAULT NOW()
     )""")
 
     # ── Table 2: quiz_attempts ────────────────────────────────────────
     c.execute("""
     CREATE TABLE IF NOT EXISTS quiz_attempts (
-        attempt_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        attempt_id          SERIAL PRIMARY KEY,
         uid                 INTEGER,
         subject             TEXT,
         topic               TEXT,
@@ -51,20 +71,20 @@ def init_db():
         accuracy_pct        REAL,
         response_latency_s  REAL DEFAULT 0.0,
         ael_modality_used   INTEGER DEFAULT 0,
-        timestamp           TEXT DEFAULT (datetime('now')),
+        timestamp           TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (uid) REFERENCES learner_profile(uid)
     )""")
 
     # ── Table 3: subject_summary ──────────────────────────────────────
     c.execute("""
     CREATE TABLE IF NOT EXISTS subject_summary (
-        summary_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+        summary_id      SERIAL PRIMARY KEY,
         uid             INTEGER,
         subject         TEXT,
         avg_accuracy    REAL DEFAULT 0.0,
         total_attempts  INTEGER DEFAULT 0,
         strength_label  TEXT DEFAULT 'Weak',
-        last_updated    TEXT DEFAULT (datetime('now')),
+        last_updated    TIMESTAMP DEFAULT NOW(),
         UNIQUE(uid, subject),
         FOREIGN KEY (uid) REFERENCES learner_profile(uid)
     )""")
@@ -72,14 +92,14 @@ def init_db():
     # ── Table 4: learning_plans ───────────────────────────────────────
     c.execute("""
     CREATE TABLE IF NOT EXISTS learning_plans (
-        plan_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        plan_id             SERIAL PRIMARY KEY,
         uid                 INTEGER,
         plan_text           TEXT,
         weak_topics_at_gen  TEXT,
         mastery_snapshot    TEXT,
         deadline            TEXT,
         days_remaining      INTEGER,
-        generated_at        TEXT DEFAULT (datetime('now')),
+        generated_at        TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (uid) REFERENCES learner_profile(uid)
     )""")
 
@@ -104,9 +124,10 @@ def init_db():
         PRIMARY KEY (uid, subject, topic),
         FOREIGN KEY (uid) REFERENCES learner_profile(uid)
     )""")
+
     c.execute("""
     CREATE TABLE IF NOT EXISTS subject_topics (
-        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        id        SERIAL PRIMARY KEY,
         subject   TEXT NOT NULL,
         topic     TEXT NOT NULL,
         position  INTEGER DEFAULT 0,
@@ -115,7 +136,7 @@ def init_db():
 
     c.execute("""
     CREATE TABLE IF NOT EXISTS plan_days (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        id          SERIAL PRIMARY KEY,
         uid         INTEGER,
         plan_id     INTEGER,
         day_number  INTEGER,
@@ -124,9 +145,9 @@ def init_db():
         status      TEXT DEFAULT 'pending',
         FOREIGN KEY (plan_id) REFERENCES learning_plans(plan_id)
     )""")
+
     conn.commit()
     conn.close()
-    print("[DB] Initialized successfully.")
 
 
 # ── LEARNER PROFILE ───────────────────────────────────────────────────────────
@@ -136,9 +157,10 @@ def create_profile(name, age, education_level, subject_list, daily_hours, deadli
     c = conn.cursor()
     c.execute("""
         INSERT INTO learner_profile (name, age, education_level, subject_list, daily_hours, deadline, learning_goals)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        RETURNING uid
     """, (name, age, education_level, ",".join(subject_list), daily_hours, deadline, learning_goals))
-    uid = c.lastrowid
+    uid = c.fetchone()["uid"]
     conn.commit()
     conn.close()
     return uid
@@ -147,14 +169,17 @@ def create_profile(name, age, education_level, subject_list, daily_hours, deadli
 def get_profile(uid):
     conn = get_connection()
     c = conn.cursor()
-    row = c.execute("SELECT * FROM learner_profile WHERE uid = ?", (uid,)).fetchone()
+    c.execute("SELECT * FROM learner_profile WHERE uid = %s", (uid,))
+    row = c.fetchone()
     conn.close()
     return dict(row) if row else None
 
 
 def get_all_profiles():
     conn = get_connection()
-    rows = conn.execute("SELECT uid, name, education_level FROM learner_profile ORDER BY uid DESC").fetchall()
+    c = conn.cursor()
+    c.execute("SELECT uid, name, education_level FROM learner_profile ORDER BY uid DESC")
+    rows = c.fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -167,9 +192,8 @@ def log_quiz_attempt(uid, subject, topic, score, total, latency, ael_modality):
     c = conn.cursor()
     c.execute("""
         INSERT INTO quiz_attempts (uid, subject, topic, score, total_questions, accuracy_pct, response_latency_s, ael_modality_used)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """, (uid, subject, topic, score, total, accuracy, latency, ael_modality))
-    conn.commit()
 
     # Update subject_summary
     _update_subject_summary(c, uid, subject)
@@ -179,23 +203,24 @@ def log_quiz_attempt(uid, subject, topic, score, total, latency, ael_modality):
 
 
 def _update_subject_summary(c, uid, subject):
-    row = c.execute("""
+    c.execute("""
         SELECT AVG(accuracy_pct) as avg_acc, COUNT(*) as cnt
-        FROM quiz_attempts WHERE uid=? AND subject=?
-    """, (uid, subject)).fetchone()
+        FROM quiz_attempts WHERE uid=%s AND subject=%s
+    """, (uid, subject))
+    row = c.fetchone()
 
-    avg_acc = round(row["avg_acc"] or 0.0, 2)
+    avg_acc = round(float(row["avg_acc"] or 0.0), 2)
     cnt = row["cnt"]
     label = classify_strength(avg_acc)
 
     c.execute("""
         INSERT INTO subject_summary (uid, subject, avg_accuracy, total_attempts, strength_label, last_updated)
-        VALUES (?, ?, ?, ?, ?, datetime('now'))
-        ON CONFLICT(uid, subject) DO UPDATE SET
-            avg_accuracy   = excluded.avg_accuracy,
-            total_attempts = excluded.total_attempts,
-            strength_label = excluded.strength_label,
-            last_updated   = excluded.last_updated
+        VALUES (%s, %s, %s, %s, %s, NOW())
+        ON CONFLICT (uid, subject) DO UPDATE SET
+            avg_accuracy   = EXCLUDED.avg_accuracy,
+            total_attempts = EXCLUDED.total_attempts,
+            strength_label = EXCLUDED.strength_label,
+            last_updated   = EXCLUDED.last_updated
     """, (uid, subject, avg_acc, cnt, label))
 
 
@@ -211,9 +236,9 @@ def classify_strength(accuracy_pct):
 
 def get_subject_summary(uid):
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM subject_summary WHERE uid=? ORDER BY subject", (uid,)
-    ).fetchall()
+    c = conn.cursor()
+    c.execute("SELECT * FROM subject_summary WHERE uid=%s ORDER BY subject", (uid,))
+    rows = c.fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -221,27 +246,31 @@ def get_subject_summary(uid):
 def get_recent_accuracy(uid, subject, topic, n=2):
     """Get last n accuracy values for a topic — used by AEL."""
     conn = get_connection()
-    rows = conn.execute("""
+    c = conn.cursor()
+    c.execute("""
         SELECT accuracy_pct FROM quiz_attempts
-        WHERE uid=? AND subject=? AND topic=?
-        ORDER BY timestamp DESC LIMIT ?
-    """, (uid, subject, topic, n)).fetchall()
+        WHERE uid=%s AND subject=%s AND topic=%s
+        ORDER BY timestamp DESC LIMIT %s
+    """, (uid, subject, topic, n))
+    rows = c.fetchall()
     conn.close()
     return [r["accuracy_pct"] for r in rows]
 
 
 def get_quiz_history(uid, subject=None):
     conn = get_connection()
+    c = conn.cursor()
     if subject:
-        rows = conn.execute("""
-            SELECT * FROM quiz_attempts WHERE uid=? AND subject=?
+        c.execute("""
+            SELECT * FROM quiz_attempts WHERE uid=%s AND subject=%s
             ORDER BY timestamp DESC
-        """, (uid, subject)).fetchall()
+        """, (uid, subject))
     else:
-        rows = conn.execute("""
-            SELECT * FROM quiz_attempts WHERE uid=?
+        c.execute("""
+            SELECT * FROM quiz_attempts WHERE uid=%s
             ORDER BY timestamp DESC
-        """, (uid,)).fetchall()
+        """, (uid,))
+    rows = c.fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -250,10 +279,12 @@ def get_quiz_history(uid, subject=None):
 
 def get_ael_modality(uid, subject, topic):
     conn = get_connection()
-    row = conn.execute(
-        "SELECT modality FROM ael_state WHERE uid=? AND subject=? AND topic=?",
+    c = conn.cursor()
+    c.execute(
+        "SELECT modality FROM ael_state WHERE uid=%s AND subject=%s AND topic=%s",
         (uid, subject, topic)
-    ).fetchone()
+    )
+    row = c.fetchone()
     conn.close()
     return row["modality"] if row else 0
 
@@ -261,10 +292,11 @@ def get_ael_modality(uid, subject, topic):
 def set_ael_modality(uid, subject, topic, modality):
     modality = max(0, min(4, modality))
     conn = get_connection()
-    conn.execute("""
+    c = conn.cursor()
+    c.execute("""
         INSERT INTO ael_state (uid, subject, topic, modality)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(uid, subject, topic) DO UPDATE SET modality = excluded.modality
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (uid, subject, topic) DO UPDATE SET modality = EXCLUDED.modality
     """, (uid, subject, topic, modality))
     conn.commit()
     conn.close()
@@ -280,8 +312,8 @@ def update_ael(uid, subject, topic, recent_accuracies):
     current_m = get_ael_modality(uid, subject, topic)
 
     if len(recent_accuracies) >= 2:
-        both_low    = all(a < 50 for a in recent_accuracies[:2])
-        both_high   = all(a > 75 for a in recent_accuracies[:2])
+        both_low  = all(a < 50 for a in recent_accuracies[:2])
+        both_high = all(a > 75 for a in recent_accuracies[:2])
         if both_low:
             new_m = min(4, current_m + 1)
         elif both_high:
@@ -299,9 +331,10 @@ def update_ael(uid, subject, topic, recent_accuracies):
 
 def log_error_topic(uid, subject, topic):
     conn = get_connection()
-    conn.execute("""
-        INSERT INTO error_topics (uid, subject, topic, count) VALUES (?, ?, ?, 1)
-        ON CONFLICT(uid, subject, topic) DO UPDATE SET count = count + 1
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO error_topics (uid, subject, topic, count) VALUES (%s, %s, %s, 1)
+        ON CONFLICT (uid, subject, topic) DO UPDATE SET count = error_topics.count + 1
     """, (uid, subject, topic))
     conn.commit()
     conn.close()
@@ -309,10 +342,12 @@ def log_error_topic(uid, subject, topic):
 
 def get_error_topics(uid, subject):
     conn = get_connection()
-    rows = conn.execute("""
-        SELECT topic FROM error_topics WHERE uid=? AND subject=?
+    c = conn.cursor()
+    c.execute("""
+        SELECT topic FROM error_topics WHERE uid=%s AND subject=%s
         ORDER BY count DESC LIMIT 5
-    """, (uid, subject)).fetchall()
+    """, (uid, subject))
+    rows = c.fetchall()
     conn.close()
     return [r["topic"] for r in rows]
 
@@ -321,9 +356,10 @@ def get_error_topics(uid, subject):
 
 def save_learning_plan(uid, plan_text, weak_topics, mastery_snapshot, deadline, days_remaining):
     conn = get_connection()
-    conn.execute("""
+    c = conn.cursor()
+    c.execute("""
         INSERT INTO learning_plans (uid, plan_text, weak_topics_at_gen, mastery_snapshot, deadline, days_remaining)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s)
     """, (uid, plan_text, str(weak_topics), str(mastery_snapshot), deadline, days_remaining))
     conn.commit()
     conn.close()
@@ -331,23 +367,27 @@ def save_learning_plan(uid, plan_text, weak_topics, mastery_snapshot, deadline, 
 
 def get_latest_plan(uid):
     conn = get_connection()
-    row = conn.execute("""
-        SELECT * FROM learning_plans WHERE uid=? ORDER BY generated_at DESC LIMIT 1
-    """, (uid,)).fetchone()
+    c = conn.cursor()
+    c.execute("""
+        SELECT * FROM learning_plans WHERE uid=%s ORDER BY generated_at DESC LIMIT 1
+    """, (uid,))
+    row = c.fetchone()
     conn.close()
     return dict(row) if row else None
+
 
 # ── SUBJECT TOPICS ────────────────────────────────────────────────────────────
 
 def save_topics(subject, topics):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("DELETE FROM subject_topics WHERE subject=?", (subject,))
+    c.execute("DELETE FROM subject_topics WHERE subject=%s", (subject,))
     for i, topic in enumerate(topics):
         if topic.strip():
             c.execute("""
-                INSERT OR IGNORE INTO subject_topics (subject, topic, position)
-                VALUES (?, ?, ?)
+                INSERT INTO subject_topics (subject, topic, position)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (subject, topic) DO NOTHING
             """, (subject, topic.strip(), i))
     conn.commit()
     conn.close()
@@ -355,19 +395,21 @@ def save_topics(subject, topics):
 
 def get_topics(subject):
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT topic FROM subject_topics WHERE subject=? ORDER BY position",
+    c = conn.cursor()
+    c.execute(
+        "SELECT topic FROM subject_topics WHERE subject=%s ORDER BY position",
         (subject,)
-    ).fetchall()
+    )
+    rows = c.fetchall()
     conn.close()
     return [r["topic"] for r in rows]
 
 
 def topics_exist(subject):
     conn = get_connection()
-    count = conn.execute(
-        "SELECT COUNT(*) as c FROM subject_topics WHERE subject=?", (subject,)
-    ).fetchone()["c"]
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) as c FROM subject_topics WHERE subject=%s", (subject,))
+    count = c.fetchone()["c"]
     conn.close()
     return count > 0
 
@@ -376,11 +418,12 @@ def topics_exist(subject):
 
 def save_plan_days(uid, plan_id, days):
     conn = get_connection()
-    conn.execute("DELETE FROM plan_days WHERE uid=? AND plan_id=?", (uid, plan_id))
+    c = conn.cursor()
+    c.execute("DELETE FROM plan_days WHERE uid=%s AND plan_id=%s", (uid, plan_id))
     for d in days:
-        conn.execute("""
+        c.execute("""
             INSERT INTO plan_days (uid, plan_id, day_number, day_label, content, status)
-            VALUES (?, ?, ?, ?, ?, 'pending')
+            VALUES (%s, %s, %s, %s, %s, 'pending')
         """, (uid, plan_id, d["day_number"], d["day_label"], d["content"]))
     conn.commit()
     conn.close()
@@ -388,18 +431,21 @@ def save_plan_days(uid, plan_id, days):
 
 def get_plan_days(uid, plan_id):
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM plan_days WHERE uid=? AND plan_id=? ORDER BY day_number",
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM plan_days WHERE uid=%s AND plan_id=%s ORDER BY day_number",
         (uid, plan_id)
-    ).fetchall()
+    )
+    rows = c.fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 def update_day_status(uid, plan_id, day_number, status):
     conn = get_connection()
-    conn.execute("""
-        UPDATE plan_days SET status=? WHERE uid=? AND plan_id=? AND day_number=?
+    c = conn.cursor()
+    c.execute("""
+        UPDATE plan_days SET status=%s WHERE uid=%s AND plan_id=%s AND day_number=%s
     """, (status, uid, plan_id, day_number))
     conn.commit()
     conn.close()
@@ -407,8 +453,9 @@ def update_day_status(uid, plan_id, day_number, status):
 
 def update_day_content(uid, plan_id, day_number, new_content):
     conn = get_connection()
-    conn.execute("""
-        UPDATE plan_days SET content=? WHERE uid=? AND plan_id=? AND day_number=?
+    c = conn.cursor()
+    c.execute("""
+        UPDATE plan_days SET content=%s WHERE uid=%s AND plan_id=%s AND day_number=%s
     """, (new_content, uid, plan_id, day_number))
     conn.commit()
     conn.close()
@@ -416,9 +463,11 @@ def update_day_content(uid, plan_id, day_number, new_content):
 
 def get_latest_plan_id(uid):
     conn = get_connection()
-    row = conn.execute(
-        "SELECT plan_id FROM learning_plans WHERE uid=? ORDER BY generated_at DESC LIMIT 1",
+    c = conn.cursor()
+    c.execute(
+        "SELECT plan_id FROM learning_plans WHERE uid=%s ORDER BY generated_at DESC LIMIT 1",
         (uid,)
-    ).fetchone()
+    )
+    row = c.fetchone()
     conn.close()
     return row["plan_id"] if row else None

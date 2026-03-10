@@ -6,7 +6,13 @@ Run with: streamlit run app.py
 import streamlit as st
 from database.db import init_db, create_profile, get_all_profiles, get_profile
 
+from database.db import init_db
+
+if st.sidebar.button("🔧 Init DB (run once)"):
+    init_db()
+    st.success("Done!")
 # ── Init ──────────────────────────────────────────────────────────────────────
+
 init_db()
 
 st.set_page_config(
