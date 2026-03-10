@@ -4,15 +4,11 @@ Run with: streamlit run app.py
 """
 
 import streamlit as st
-from database.db import init_db, create_profile, get_all_profiles, get_profile
+from database.db import (init_db, create_profile, get_all_profiles, get_profile,
+                          get_subject_summary, get_quiz_history,
+                          get_xp, get_streak, get_level_title, get_xp_progress)
 
-from database.db import init_db
-
-if st.sidebar.button("🔧 Init DB (run once)"):
-    init_db()
-    st.success("Done!")
 # ── Init ──────────────────────────────────────────────────────────────────────
-
 init_db()
 
 st.set_page_config(
@@ -44,11 +40,11 @@ with st.sidebar:
                 st.session_state[key] = None if key != "chat_history" else []
             st.rerun()
         st.divider()
-        st.page_link("pages/1_Study.py",         label="📖 Study",          icon="📖")
-        st.page_link("pages/2_Quiz.py",           label="🧠 Quiz",           icon="🧠")
-        st.page_link("pages/3_LearningPlan.py",   label="🗓️ Learning Plan",  icon="🗓️")
-        st.page_link("pages/4_Dashboard.py",      label="📊 Dashboard",      icon="📊")
-        st.page_link("pages/5_UploadSyllabus.py", label="📄 Upload Syllabus",icon="📄")
+        st.page_link("pages/1_Study.py",         label="📖 Study",           icon="📖")
+        st.page_link("pages/2_Quiz.py",           label="🧠 Quiz",            icon="🧠")
+        st.page_link("pages/3_LearningPlan.py",   label="🗓️ Learning Plan",   icon="🗓️")
+        st.page_link("pages/4_Dashboard.py",      label="📊 Dashboard",       icon="📊")
+        st.page_link("pages/5_UploadSyllabus.py", label="📄 Upload Syllabus", icon="📄")
 
 # ── Main page ─────────────────────────────────────────────────────────────────
 if not st.session_state.uid:
@@ -80,7 +76,7 @@ if not st.session_state.uid:
             daily_hours    = st.slider("Daily Study Hours", 0.5, 8.0, 2.0, 0.5)
             deadline       = st.date_input("Target Completion Date")
 
-        goals = st.text_area("Learning Goals", placeholder="e.g. Prepare for semester exams, understand core concepts...")
+        goals = st.text_area("Learning Goals", placeholder="e.g. Prepare for semester exams...")
 
         if st.button("✅ Create Profile", type="primary", use_container_width=True):
             if not name or not subjects_input:
@@ -113,22 +109,76 @@ if not st.session_state.uid:
                 st.session_state.profile = profile
                 st.session_state.profile["subjects_list"] = profile["subject_list"].split(",")
                 st.rerun()
+
 else:
-    # Logged in — show dashboard summary
+    # ── Logged in dashboard ───────────────────────────────────────────────────
     p = st.session_state.profile
+    uid = st.session_state.uid
+
     st.title(f"Welcome back, {p['name']}! 👋")
     st.markdown("Use the **sidebar** to navigate to Study, Quiz, Learning Plan, or Dashboard.")
 
+    # ── Basic stats ───────────────────────────────────────────────────────────
+    summaries = get_subject_summary(uid)
+    history   = get_quiz_history(uid)
+
     col1, col2, col3 = st.columns(3)
-    from database.db import get_subject_summary, get_quiz_history
-    summaries = get_subject_summary(st.session_state.uid)
-    history   = get_quiz_history(st.session_state.uid)
+    col1.metric("📚 Subjects",       len(p["subject_list"].split(",")))
+    col2.metric("🧠 Quiz Attempts",  len(history))
+    col3.metric("🏆 Strong Subjects", len([s for s in summaries if s["strength_label"] == "Strong"]))
 
-    col1.metric("📚 Subjects",      len(p["subject_list"].split(",")))
-    col2.metric("🧠 Quiz Attempts", len(history))
-    col3.metric("🏆 Strong Subjects",
-                len([s for s in summaries if s["strength_label"] == "Strong"]))
+    # ── 🎮 Gamification Dashboard ─────────────────────────────────────────────
+    st.divider()
+    st.subheader("🎮 Your Progress")
 
+    xp_data     = get_xp(uid)
+    streak_data = get_streak(uid)
+
+    total_xp       = xp_data.get("total_xp", 0)
+    level          = xp_data.get("level", 1)
+    current_streak = streak_data.get("current_streak", 0)
+    longest_streak = streak_data.get("longest_streak", 0)
+
+    xp_in_level, xp_needed = get_xp_progress(total_xp, level)
+    level_title  = get_level_title(level)
+    progress_pct = xp_in_level / xp_needed if xp_needed > 0 else 0
+
+    g1, g2, g3, g4 = st.columns(4)
+    g1.metric("⭐ Total XP",       total_xp)
+    g2.metric("🏅 Level",          f"{level} — {level_title}")
+    streak_icon = "🔥" if current_streak >= 3 else "📅"
+    g3.metric(f"{streak_icon} Streak", f"{current_streak} days")
+    g4.metric("🏆 Best Streak",    f"{longest_streak} days")
+
+    st.markdown(f"**Level Progress:** {xp_in_level} / {xp_needed} XP to next level")
+    st.progress(progress_pct)
+
+    if current_streak >= 7:
+        st.success(f"🔥 {'🔥' * min(current_streak, 10)} Amazing! {current_streak} days in a row!")
+    elif current_streak >= 3:
+        st.info(f"🔥 {'🔥' * current_streak} {current_streak} day streak — keep it up!")
+    elif current_streak > 0:
+        st.info(f"📅 {current_streak} day streak — study today to keep it going!")
+    else:
+        st.warning("📅 Study today to start your streak!")
+
+    with st.expander("📊 Level Milestones"):
+        levels = {
+            1: ("🌱 Seedling",  0),
+            2: ("📖 Learner",   100),
+            3: ("🔥 Scholar",   200),
+            4: ("⚡ Expert",    300),
+            5: ("🏆 Master",    400),
+        }
+        for lvl, (title, xp_req) in levels.items():
+            if lvl < level:
+                st.markdown(f"✅ Level {lvl}: {title} *(unlocked)*")
+            elif lvl == level:
+                st.markdown(f"⭐ **Level {lvl}: {title} ← YOU ARE HERE**")
+            else:
+                st.markdown(f"🔒 Level {lvl}: {title} *(need {xp_req} XP)*")
+
+    # ── Subject mastery ───────────────────────────────────────────────────────
     if summaries:
         st.divider()
         st.subheader("📊 Subject Mastery Overview")

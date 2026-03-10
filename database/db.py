@@ -146,6 +146,50 @@ def init_db():
         FOREIGN KEY (plan_id) REFERENCES learning_plans(plan_id)
     )""")
 
+    # ── Gamification: XP & Levels ─────────────────────────────────────
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS learner_xp (
+        uid             INTEGER PRIMARY KEY,
+        total_xp        INTEGER DEFAULT 0,
+        level           INTEGER DEFAULT 1,
+        last_updated    TIMESTAMP DEFAULT NOW(),
+        FOREIGN KEY (uid) REFERENCES learner_profile(uid)
+    )''')
+
+    # ── Gamification: Daily Streaks ───────────────────────────────────
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS learner_streaks (
+        uid             INTEGER PRIMARY KEY,
+        current_streak  INTEGER DEFAULT 0,
+        longest_streak  INTEGER DEFAULT 0,
+        last_study_date TEXT,
+        FOREIGN KEY (uid) REFERENCES learner_profile(uid)
+    )''')
+
+    # ── AI: Hint usage tracking ───────────────────────────────────────
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS hint_usage (
+        id          SERIAL PRIMARY KEY,
+        uid         INTEGER,
+        subject     TEXT,
+        topic       TEXT,
+        hint_level  INTEGER,
+        timestamp   TIMESTAMP DEFAULT NOW(),
+        FOREIGN KEY (uid) REFERENCES learner_profile(uid)
+    )''')
+
+    # ── AI: Socratic session history ──────────────────────────────────
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS socratic_sessions (
+        id          SERIAL PRIMARY KEY,
+        uid         INTEGER,
+        subject     TEXT,
+        topic       TEXT,
+        messages    TEXT,
+        timestamp   TIMESTAMP DEFAULT NOW(),
+        FOREIGN KEY (uid) REFERENCES learner_profile(uid)
+    )''')
+
     conn.commit()
     conn.close()
 
@@ -471,3 +515,181 @@ def get_latest_plan_id(uid):
     row = c.fetchone()
     conn.close()
     return row["plan_id"] if row else None
+
+
+XP_PER_QUIZ     = 10   # base XP per quiz completed
+XP_BONUS_STRONG = 15   # bonus if accuracy >= 75%
+XP_PER_LEVEL    = 100  # XP needed to level up
+
+LEVEL_TITLES = {
+    1: "🌱 Seedling",
+    2: "📖 Learner",
+    3: "🔥 Scholar",
+    4: "⚡ Expert",
+    5: "🏆 Master",
+}
+
+
+def get_xp(uid):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM learner_xp WHERE uid=%s", (uid,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return {"uid": uid, "total_xp": 0, "level": 1}
+
+
+def add_xp(uid, accuracy_pct):
+    """Award XP after a quiz. Returns (xp_gained, new_total, new_level, leveled_up)."""
+    xp_gained = XP_PER_QUIZ
+    if accuracy_pct >= 75:
+        xp_gained += XP_BONUS_STRONG
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    # Upsert XP row
+    c.execute("""
+        INSERT INTO learner_xp (uid, total_xp, level)
+        VALUES (%s, %s, 1)
+        ON CONFLICT (uid) DO UPDATE SET
+            total_xp = learner_xp.total_xp + %s,
+            last_updated = NOW()
+        RETURNING total_xp, level
+    """, (uid, xp_gained, xp_gained))
+    row = c.fetchone()
+    new_total = row["total_xp"]
+    old_level = row["level"]
+
+    # Calculate new level
+    new_level = max(1, min(5, new_total // XP_PER_LEVEL + 1))
+    leveled_up = new_level > old_level
+
+    if leveled_up:
+        c.execute("UPDATE learner_xp SET level=%s WHERE uid=%s", (new_level, uid))
+
+    conn.commit()
+    conn.close()
+    return xp_gained, new_total, new_level, leveled_up
+
+
+def get_level_title(level):
+    return LEVEL_TITLES.get(level, "🏆 Master")
+
+
+def get_xp_progress(total_xp, level):
+    """Returns (xp_in_current_level, xp_needed_for_next) for progress bar."""
+    xp_in_level = total_xp % XP_PER_LEVEL
+    return xp_in_level, XP_PER_LEVEL
+
+
+# ── STREAKS ───────────────────────────────────────────────────────────────────
+
+def update_streak(uid):
+    """
+    Call once per day when student studies.
+    Returns (current_streak, longest_streak, is_new_day).
+    """
+    from datetime import date
+    today = str(date.today())
+
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM learner_streaks WHERE uid=%s", (uid,))
+    row = c.fetchone()
+
+    if not row:
+        # First time
+        c.execute("""
+            INSERT INTO learner_streaks (uid, current_streak, longest_streak, last_study_date)
+            VALUES (%s, 1, 1, %s)
+        """, (uid, today))
+        conn.commit()
+        conn.close()
+        return 1, 1, True
+
+    row = dict(row)
+    last_date = row["last_study_date"]
+    current   = row["current_streak"]
+    longest   = row["longest_streak"]
+
+    if last_date == today:
+        # Already studied today
+        conn.close()
+        return current, longest, False
+
+    from datetime import date, timedelta
+    yesterday = str(date.today() - timedelta(days=1))
+
+    if last_date == yesterday:
+        current += 1  # continued streak
+    else:
+        current = 1   # streak broken, reset
+
+    longest = max(longest, current)
+
+    c.execute("""
+        UPDATE learner_streaks
+        SET current_streak=%s, longest_streak=%s, last_study_date=%s
+        WHERE uid=%s
+    """, (current, longest, today, uid))
+    conn.commit()
+    conn.close()
+    return current, longest, True
+
+
+def get_streak(uid):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM learner_streaks WHERE uid=%s", (uid,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return {"current_streak": 0, "longest_streak": 0, "last_study_date": None}
+
+
+# ── HINT USAGE ────────────────────────────────────────────────────────────────
+
+def log_hint_usage(uid, subject, topic, hint_level):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO hint_usage (uid, subject, topic, hint_level)
+        VALUES (%s, %s, %s, %s)
+    """, (uid, subject, topic, hint_level))
+    conn.commit()
+    conn.close()
+
+
+# ── SOCRATIC SESSIONS ─────────────────────────────────────────────────────────
+
+def save_socratic_session(uid, subject, topic, messages):
+    import json
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO socratic_sessions (uid, subject, topic, messages)
+        VALUES (%s, %s, %s, %s)
+    """, (uid, subject, topic, json.dumps(messages)))
+    conn.commit()
+    conn.close()
+
+def get_socratic_sessions(uid, subject=None):
+    conn = get_connection()
+    c = conn.cursor()
+    if subject:
+        c.execute("""
+            SELECT * FROM socratic_sessions WHERE uid=%s AND subject=%s
+            ORDER BY timestamp DESC
+        """, (uid, subject))
+    else:
+        c.execute("""
+            SELECT * FROM socratic_sessions WHERE uid=%s
+            ORDER BY timestamp DESC
+        """, (uid,))
+    rows = c.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
