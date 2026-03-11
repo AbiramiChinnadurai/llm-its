@@ -980,8 +980,19 @@ with tab2:
         # ══ SIDEBAR ═══════════════════════════════════════════════════════════════════
         with col_side:
             st.markdown('<div class="section-label">Settings</div>', unsafe_allow_html=True)
-            subject = st.selectbox("Subject", subjects)
-            st.session_state.quiz_subject = subject
+            # ✅ Replace with:
+            subject = st.session_state.get("study_subject") or subjects[0]
+            st.session_state["quiz_subject"] = subject
+
+            st.markdown(f"""
+            <div style="background:#0d1a2e;border:1px solid #1d4ed8;border-radius:10px;
+                        padding:10px 14px;margin-bottom:16px;">
+                <div style="font-size:0.65rem;color:#4a6080;text-transform:uppercase;
+                            letter-spacing:0.1em;margin-bottom:3px;">Subject</div>
+                <div style="font-family:'Syne',sans-serif;font-size:0.95rem;
+                            font-weight:700;color:#60a5fa;">📚 {subject}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
             topic = st.text_input("Topic", placeholder="e.g. Sorting Algorithms")
             st.session_state.quiz_topic = topic
@@ -1459,6 +1470,8 @@ with tab3:
         uid      = st.session_state.uid
         profile  = st.session_state.profile
         subjects = profile.get("subjects_list") or profile.get("subject_list", "").split(",")
+        subjects = [s.strip() for s in subjects if s.strip()]
+        active_subject = st.session_state.get("study_subject") or subjects[0]
         def parse_plan_into_days(plan_text):
             days = []
             matches = re.findall(
@@ -1554,6 +1567,16 @@ with tab3:
             <div class="meta-grid">
                 <div class="meta-cell"><div class="val">{days_left}</div><div class="lbl">Days Left</div></div>
                 <div class="meta-cell"><div class="val">{profile.get('daily_hours', 2)}h</div><div class="lbl">Daily</div></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown(f"""
+            <div style="background:#0d1a2e;border:1px solid #1d4ed8;border-radius:10px;
+                        padding:10px 14px;margin-bottom:16px;">
+                <div style="font-size:0.65rem;color:#4a6080;text-transform:uppercase;
+                            letter-spacing:0.1em;margin-bottom:3px;">Subject</div>
+                <div style="font-family:'Syne',sans-serif;font-size:0.95rem;
+                            font-weight:700;color:#60a5fa;">📚 {active_subject}</div>
             </div>
             """, unsafe_allow_html=True)
 
