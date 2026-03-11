@@ -33,6 +33,13 @@ def render_sidebar():
         render_theme_toggle()
 
         if not st.session_state.get("uid"):
+            st.divider()
+            st.markdown(
+                f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;'
+                f'text-transform:uppercase;color:{t["text_faint"]};margin-bottom:8px;">Navigation</div>',
+                unsafe_allow_html=True
+            )
+            st.page_link("app.py", label="Home — Login / Register", icon="🏠")
             return
 
         p = st.session_state.profile
