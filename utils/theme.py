@@ -80,11 +80,11 @@ LIGHT = {
     # Borders
     "border":        "#e8e0d8",
     "border2":       "#ede6dd",
-    # Text
-    "text_primary":  "#1a0f00",
-    "text_secondary":"#3d2b1a",
-    "text_muted":    "#8a7060",
-    "text_faint":    "#c4b0a0",
+    # Text — dark enough for readability on white/cream
+    "text_primary":  "#0f0a00",
+    "text_secondary":"#2d1f0f",
+    "text_muted":    "#5c4a3a",
+    "text_faint":    "#6b5a4a",
     # Accent (orange)
     "accent":        "#ea580c",
     "accent2":       "#c2410c",
@@ -114,7 +114,7 @@ LIGHT = {
     "btn_primary_h": "linear-gradient(135deg,#f97316,#ea580c)",
     "btn_primary_sh":"0 4px 20px rgba(234,88,12,0.30)",
     "btn_bg":        "#ffffff",
-    "btn_color":     "#6b5040",
+    "btn_color":     "#2d1f0f",
     "btn_border":    "#e8e0d8",
     # Sidebar header text
     "header_bg":     "linear-gradient(160deg, #fff5eb 0%, #fffbf7 60%)",
@@ -184,8 +184,10 @@ def build_css(t: dict) -> str:
     --watermark: {t['watermark']};
 }}
 /* Force Streamlit containers to respect theme */
-.main .block-container {{ background: {t['app_bg']} !important; }}
-div[data-testid="stVerticalBlock"] > div {{ color: {t['text_secondary']}; }}
+.main .block-container {{ background: {t['app_bg']} !important; color: {t['text_secondary']} !important; }}
+div[data-testid="stVerticalBlock"] > div {{ color: {t['text_secondary']} !important; }}
+/* Override Streamlit's default light-theme gray text */
+.block-container, [data-testid="stVerticalBlock"] {{ color: {t['text_secondary']} !important; }}
 
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -281,8 +283,32 @@ hr {{ border-color: {t['border']} !important; }}
     border-radius: 12px !important;
 }}
 
-/* Metric / dataframe */
-[data-testid="stMetric"] {{ background: {t['card_bg']} !important; border-radius: 10px !important; }}
+/* Metric — ensure labels and values are readable */
+[data-testid="stMetric"], [data-testid="metric-container"] {{
+    background: {t['card_bg']} !important;
+    border-radius: 10px !important;
+}}
+[data-testid="stMetricLabel"], [data-testid="stMetricValue"],
+[data-testid="stMetric"] label, [data-testid="stMetric"] div,
+[data-testid="metric-container"] label, [data-testid="metric-container"] div {{
+    color: {t['text_primary']} !important;
+}}
+
+/* Titles, headers — force readable text */
+.main h1, .main h2, .main h3, .main [data-testid="stMarkdown"] p,
+.main [data-testid="stMarkdown"] {{
+    color: {t['text_primary']} !important;
+}}
+
+/* Expander header */
+[data-testid="stExpander"] summary, [data-testid="stExpander"] label {{
+    color: {t['text_primary']} !important;
+}}
+
+/* General main content text */
+.main p, .main [data-testid="stMarkdown"] {{
+    color: {t['text_secondary']} !important;
+}}
 
 /* ── Component classes ── */
 .hud-header {{
