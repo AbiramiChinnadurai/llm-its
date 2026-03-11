@@ -12,7 +12,6 @@ import re
 from datetime import datetime, date, timedelta
 from groq import Groq
 from components.sidebar import render_sidebar
-render_sidebar()
 
 from database.db import (get_subject_summary, get_error_topics,
                           get_ael_modality, get_topics,
@@ -42,6 +41,7 @@ from xai.xai_widget import (
 )
 
 st.set_page_config(page_title="Learn | LLM-ITS", page_icon="🎓", layout="wide")
+render_sidebar()
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 if not st.session_state.get("uid"):
@@ -232,11 +232,21 @@ with tab1:
     def _run_study():
         uid      = st.session_state.uid
         profile  = st.session_state.profile
-        subjects = profile.get("subjects_list") or profile.get("subject_list", "").split(",")
+
+        # ── Parse subjects correctly (list or comma string) ───────────────────
+        raw = profile.get("subjects_list") or profile.get("subject_list", "")
+        if isinstance(raw, list):
+            subjects = [s.strip() for s in raw if s.strip()]
+        else:
+            subjects = [s.strip() for s in str(raw).split(",") if s.strip()]
+        if not subjects:
+            subjects = ["General"]
 
         if "chat_history"   not in st.session_state: st.session_state.chat_history   = []
-        if "study_subject"  not in st.session_state: st.session_state.study_subject  = subjects[0]
         if "selected_topic" not in st.session_state: st.session_state.selected_topic = None
+        # Only set study_subject if NOT already set by sidebar click
+        if not st.session_state.get("study_subject"):
+            st.session_state.study_subject = subjects[0]
 
         # ── Emotion tracker (one per study session) ───────────────────────────────────
         study_tracker = get_tracker("study_emotion_tracker")
@@ -458,9 +468,8 @@ with tab1:
 
         # ── SIDEBAR: Topic list ───────────────────────────────────────────────────────
         with col_side:
-            # ✅ Just read from session state — no dropdown
-            subject = st.session_state.get("study_subject") or subjects[0]
-            st.session_state["study_subject"] = subject
+            # ✅ Always use session state — set by sidebar click
+            subject = st.session_state.study_subject
 
             st.markdown(f"""
             <div style="background:#0d1a2e;border:1px solid #1d4ed8;border-radius:10px;
