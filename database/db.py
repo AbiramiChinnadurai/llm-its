@@ -34,7 +34,11 @@ def get_connection():
             "DATABASE_URL not found. Add it to .streamlit/secrets.toml under [supabase]."
         )
 
-    conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.RealDictCursor)
+    conn = psycopg2.connect(
+    db_url,
+    cursor_factory=psycopg2.extras.RealDictCursor,
+    sslmode="require"
+    )
     return conn
 
 
