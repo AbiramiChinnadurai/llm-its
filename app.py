@@ -40,7 +40,17 @@ with st.sidebar:
                 st.session_state[key] = None if key != "chat_history" else []
             st.rerun()
         st.divider()
-        st.page_link("pages/1_Learn.py",          label="📖 Learn",          icon="📖")
+        # ✅ New — subjects as clickable nav items
+        st.markdown("**📖 Subjects**")
+        subjects_list = p.get("subjects_list") or p.get("subject_list", "").split(",")
+        for subj in subjects_list:
+            if st.button(f"📚 {subj.strip()}", key=f"nav_{subj}", use_container_width=True):
+                st.session_state["study_subject"]  = subj.strip()
+                st.session_state["selected_topic"] = None
+                st.session_state["chat_history"]   = []
+                st.switch_page("pages/1_Learn.py")
+
+        st.divider()
         st.page_link("pages/4_Dashboard.py",      label="📊 Dashboard",      icon="📊")
         st.page_link("pages/5_UploadSyllabus.py", label="📄 Upload Syllabus",icon="📄")
         st.page_link("pages/6_Notes.py",          label="📝 Notes",          icon="📝")
