@@ -156,7 +156,7 @@ else:
 
     with st.expander("📊 Level Milestones"):
         levels = {
-            1: ("🌱 Seedling",  0),
+            1: ("🌱 Beginner",  0),
             2: ("📖 Learner",   100),
             3: ("🔥 Scholar",   200),
             4: ("⚡ Expert",    300),
