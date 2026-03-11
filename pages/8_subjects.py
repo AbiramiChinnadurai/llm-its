@@ -136,25 +136,26 @@ def get_current_subjects():
 
 def save_subjects_to_db(uid, subjects):
     try:
-        try:
-            url = st.secrets["supabase"]["url"]
-            key = st.secrets["supabase"]["key"]
-        except Exception:
-            url = st.secrets.get("SUPABASE_URL", "")
-            key = st.secrets.get("SUPABASE_KEY", "")
-        from supabase import create_client
-        client = create_client(url, key)
-        subjects_str = ", ".join(subjects)
-        try:
-            client.table("profiles").update({
-                "subjects_list": subjects,
-                "subject_list":  subjects_str,
-            }).eq("uid", uid).execute()
-        except Exception:
-            client.table("profiles").update({
-                "subject_list": subjects_str,
-            }).eq("uid", uid).execute()
+        from database.db import update_profile_subjects  # use your existing db module
+        update_profile_subjects(uid, subjects)
         return True
+    except ImportError:
+        # Fallback: update directly via your db connection
+        try:
+            from database.db import get_db_connection
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            subjects_str = ", ".join(subjects)
+            cursor.execute(
+                "UPDATE profiles SET subject_list = ? WHERE uid = ?",
+                (subjects_str, uid)
+            )
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            st.error(f"DB save failed: {e}")
+            return False
     except Exception as e:
         st.error(f"DB save failed: {e}")
         return False
