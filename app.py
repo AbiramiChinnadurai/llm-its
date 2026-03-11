@@ -59,6 +59,13 @@ html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Hide Streamlit's default page nav */
+[data-testid="stSidebarNav"] { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
+
 # ── Main page ─────────────────────────────────────────────────────────────────
 if not st.session_state.uid:
     st.markdown("""
