@@ -1827,7 +1827,8 @@ with tab3:
                             st.session_state["study_subject"]  = subj
                             st.session_state["selected_topic"] = topic
                             st.session_state["chat_history"]   = []
-                            st.switch_page("pages/1_Study.py")
+                            st.switch_page("pages/1_Learn.py")
+
 
                     with act2:
                         if status != "completed":

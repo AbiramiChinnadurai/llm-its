@@ -40,11 +40,12 @@ with st.sidebar:
                 st.session_state[key] = None if key != "chat_history" else []
             st.rerun()
         st.divider()
-        st.page_link("pages/1_Study.py",         label="📖 Study",           icon="📖")
-        st.page_link("pages/2_Quiz.py",           label="🧠 Quiz",            icon="🧠")
-        st.page_link("pages/3_LearningPlan.py",   label="🗓️ Learning Plan",   icon="🗓️")
-        st.page_link("pages/4_Dashboard.py",      label="📊 Dashboard",       icon="📊")
-        st.page_link("pages/5_UploadSyllabus.py", label="📄 Upload Syllabus", icon="📄")
+        st.page_link("pages/1_Learn.py",          label="📖 Learn",          icon="📖")
+        st.page_link("pages/4_Dashboard.py",      label="📊 Dashboard",      icon="📊")
+        st.page_link("pages/5_UploadSyllabus.py", label="📄 Upload Syllabus",icon="📄")
+        st.page_link("pages/6_Notes.py",          label="📝 Notes",          icon="📝")
+        st.page_link("pages/7_XAI_Debug.py",      label="🔍 XAI Debug",      icon="🔍")
+        st.page_link("pages/8_subjects.py",       label="📚 Subjects",       icon="📚")
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -135,7 +136,7 @@ if not st.session_state.uid:
                 profile = get_profile(uid)
                 st.session_state.uid     = uid
                 st.session_state.profile = profile
-                st.session_state.profile["subjects_list"] = profile["subject_list"].split(",")
+                st.session_state.profile["subjects_list"] = profile.get("subject_list", "").split(",")
                 st.rerun()
 
 else:
@@ -151,6 +152,7 @@ else:
     history   = get_quiz_history(uid)
 
     col1, col2, col3 = st.columns(3)
+    subject_list = p.get("subject_list") or ",".join(p.get("subjects_list", []))
     col1.metric("📚 Subjects",       len(p["subject_list"].split(",")))
     col2.metric("🧠 Quiz Attempts",  len(history))
     col3.metric("🏆 Strong Subjects", len([s for s in summaries if s["strength_label"] == "Strong"]))
