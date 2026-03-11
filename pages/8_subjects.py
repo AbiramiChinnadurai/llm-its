@@ -8,10 +8,7 @@ Subject Manager + Syllabus Upload — all in one clean page.
 import streamlit as st
 import os
 import tempfile
-from database.db import get_profile, get_topics, topics_exist
-from kg.kg_engine import build_knowledge_graph, KnowledgeGraph
-from rag.rag_pipeline import build_faiss_index, index_exists, extract_topics_from_pdf
-from database.db import save_topics
+from database.db import get_topics, topics_exist, save_topics, get_connection
 from components.sidebar import render_sidebar
 
 st.set_page_config(page_title="Subjects | LLM-ITS", page_icon="📚", layout="wide")
@@ -57,20 +54,13 @@ button[kind="primary"]:hover {
     background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
     box-shadow: 0 4px 20px rgba(37,99,235,0.35) !important;
 }
-
-/* Subject card */
 .subj-card {
-    background: #0d1524;
-    border: 1px solid #1a2540;
-    border-radius: 14px;
-    padding: 16px 18px;
-    margin-bottom: 10px;
+    background: #0d1524; border: 1px solid #1a2540;
+    border-radius: 14px; padding: 10px 14px; margin-bottom: 0;
     transition: border-color 0.2s;
 }
 .subj-card:hover { border-color: #2563eb; }
 .subj-card-name  { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: #f0f6ff; }
-.subj-card-meta  { font-size: 0.72rem; color: #4a6080; margin-top: 3px; }
-
 .badge {
     display: inline-block; border-radius: 20px;
     padding: 2px 10px; font-size: 0.65rem; font-weight: 600;
@@ -79,28 +69,14 @@ button[kind="primary"]:hover {
 .badge-green  { background: #081810; color: #34d399; border-color: #065f35; }
 .badge-blue   { background: #0d1a2e; color: #60a5fa; border-color: #1d4ed8; }
 .badge-yellow { background: #1c1005; color: #fbbf24; border-color: #92400e; }
-
 .section-title {
     font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.15em; margin-bottom: 14px;
 }
-
-.upload-zone {
-    background: #0d1524;
-    border: 1px dashed #2a3a5a;
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 16px;
-}
-
-.step-row {
-    display: flex; align-items: flex-start; gap: 12px;
-    margin-bottom: 12px;
-}
+.step-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
 .step-num {
     width: 24px; height: 24px; border-radius: 50%;
-    background: #1d4ed8; color: #fff;
-    font-size: 0.7rem; font-weight: 800;
+    background: #1d4ed8; color: #fff; font-size: 0.7rem; font-weight: 800;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; margin-top: 1px;
 }
@@ -108,7 +84,7 @@ button[kind="primary"]:hover {
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ─────────────────────────────────────────────────────────────────────
+# ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div style="background:linear-gradient(160deg,#0d1524 0%,#080c14 60%);
             border:1px solid #1a2540; border-radius:20px;
@@ -134,50 +110,63 @@ def get_current_subjects():
         return [s.strip() for s in raw if s.strip()]
     return [s.strip() for s in str(raw).split(",") if s.strip()]
 
+
 def save_subjects_to_db(uid, subjects):
+    """Save subject list using existing get_connection() from db.py."""
     try:
-        from database.db import update_profile_subjects  # use your existing db module
-        update_profile_subjects(uid, subjects)
+        conn = get_connection()
+        c    = conn.cursor()
+        c.execute(
+            "UPDATE learner_profile SET subject_list = %s WHERE uid = %s",
+            (", ".join(subjects), uid)
+        )
+        conn.commit()
+        conn.close()
         return True
-    except ImportError:
-        # Fallback: update directly via your db connection
-        try:
-            from database.db import get_db_connection
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            subjects_str = ", ".join(subjects)
-            cursor.execute(
-                "UPDATE profiles SET subject_list = ? WHERE uid = ?",
-                (subjects_str, uid)
-            )
-            conn.commit()
-            conn.close()
-            return True
-        except Exception as e:
-            st.error(f"DB save failed: {e}")
-            return False
     except Exception as e:
         st.error(f"DB save failed: {e}")
         return False
 
+
 def refresh_session(subjects):
     st.session_state.profile["subjects_list"] = subjects
     st.session_state.profile["subject_list"]  = ", ".join(subjects)
-    for k in [k for k in st.session_state if k.startswith(("kg_","topics_"))]:
+    st.session_state.subjects_edit_list       = subjects
+    for k in [k for k in list(st.session_state.keys()) if k.startswith(("kg_", "topics_"))]:
         del st.session_state[k]
 
+
+def get_subject_status(subj):
+    """Safely get PDF/KG status with lazy imports so missing modules don't crash the page."""
+    has_topics = bool(get_topics(subj))
+    has_kg     = False
+    has_index  = False
+    try:
+        from kg.kg_engine import KnowledgeGraph
+        has_kg = KnowledgeGraph.exists(subj)
+    except Exception:
+        pass
+    try:
+        from rag.rag_pipeline import index_exists
+        has_index = index_exists(subj)
+    except Exception:
+        pass
+    return has_topics, has_kg, has_index
+
+
+# ── Init ──────────────────────────────────────────────────────────────────────
 if "subjects_edit_list" not in st.session_state:
     st.session_state.subjects_edit_list = get_current_subjects()
 
 current = st.session_state.subjects_edit_list
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TWO COLUMN LAYOUT
-# ══════════════════════════════════════════════════════════════════════════════
 col_left, col_right = st.columns([1, 1], gap="large")
 
-# ══ LEFT: Subject list ════════════════════════════════════════════════════════
+# ══ LEFT ══════════════════════════════════════════════════════════════════════
 with col_left:
+
+    # ── Subject list ──────────────────────────────────────────────────────────
     st.markdown('<div class="section-title" style="color:#3b82f6;">📋 My Subjects</div>', unsafe_allow_html=True)
 
     if not current:
@@ -189,13 +178,11 @@ with col_left:
         """, unsafe_allow_html=True)
     else:
         for i, subj in enumerate(current):
-            has_topics = bool(get_topics(subj))
-            has_kg     = KnowledgeGraph.exists(subj)
-            has_index  = index_exists(subj)
+            has_topics, has_kg, has_index = get_subject_status(subj)
 
             if has_topics and has_kg:
                 badge = '<span class="badge badge-green">✓ PDF + KG</span>'
-            elif has_index:
+            elif has_index or has_topics:
                 badge = '<span class="badge badge-blue">✓ PDF indexed</span>'
             else:
                 badge = '<span class="badge badge-yellow">⚠ No PDF yet</span>'
@@ -212,7 +199,7 @@ with col_left:
 
             with c_name:
                 st.markdown(f"""
-                <div class="subj-card" style="margin-bottom:0;padding:10px 14px;">
+                <div class="subj-card">
                     <span class="subj-card-name">{subj}</span>{badge}
                 </div>
                 """, unsafe_allow_html=True)
@@ -233,7 +220,9 @@ with col_left:
                 st.markdown(f"""
                 <div style="background:#1c0808;border:1px solid #7f1d1d;border-radius:10px;
                             padding:10px 14px;margin:4px 0 8px 0;">
-                    <span style="font-size:0.8rem;color:#f87171;">Remove <strong>{subj}</strong>?</span>
+                    <span style="font-size:0.8rem;color:#f87171;">
+                        Remove <strong>{subj}</strong>? This won't delete your uploaded PDFs.
+                    </span>
                 </div>
                 """, unsafe_allow_html=True)
                 y, n = st.columns(2)
@@ -264,15 +253,14 @@ with col_left:
 
     st.divider()
 
-    # ── Upload Syllabus (inline, per subject) ─────────────────────────────────
+    # ── Upload Syllabus ───────────────────────────────────────────────────────
     st.markdown('<div class="section-title" style="color:#10b981;">⬆️ Upload Syllabus PDF</div>', unsafe_allow_html=True)
 
     if not current:
-        st.caption("Add subjects first, then upload a PDF for each.")
+        st.caption("Save subjects first, then upload a PDF for each.")
     else:
         selected_subject = st.selectbox("Select subject to upload for", current, key="upload_subj_sel")
-
-        uploaded_file = st.file_uploader("Choose PDF", type=["pdf"], key="syllabus_uploader")
+        uploaded_file    = st.file_uploader("Choose PDF", type=["pdf"], key="syllabus_uploader")
 
         if uploaded_file:
             st.markdown(f"""
@@ -288,9 +276,11 @@ with col_left:
                     tmp.write(uploaded_file.read())
                     tmp_path = tmp.name
                 try:
-                    prog = st.progress(0, text="Reading PDF...")
+                    from rag.rag_pipeline import build_faiss_index, extract_topics_from_pdf
+
+                    prog = st.progress(0,  text="Reading PDF...")
                     prog.progress(25, text="Extracting topics from headings...")
-                    topics = extract_topics_from_pdf(tmp_path)
+                    topics      = extract_topics_from_pdf(tmp_path)
                     save_topics(selected_subject, topics)
 
                     prog.progress(55, text="Building FAISS index...")
@@ -302,28 +292,39 @@ with col_left:
                     if topics:
                         with st.expander(f"📋 {len(topics)} topics found", expanded=True):
                             tcols = st.columns(3)
-                            for i, t in enumerate(topics):
-                                tcols[i % 3].markdown(f"• {t}")
+                            for idx, t in enumerate(topics):
+                                tcols[idx % 3].markdown(f"• {t}")
                 except Exception as e:
                     st.error(f"❌ Error: {e}")
                 finally:
-                    os.unlink(tmp_path)
+                    try:
+                        os.unlink(tmp_path)
+                    except Exception:
+                        pass
 
     st.divider()
 
-    # ── Knowledge Graph builder ───────────────────────────────────────────────
+    # ── Knowledge Graph ───────────────────────────────────────────────────────
     st.markdown('<div class="section-title" style="color:#8b5cf6;">🕸️ Knowledge Graph</div>', unsafe_allow_html=True)
 
     if not current:
         st.caption("Add and upload subjects first.")
     else:
-        kg_subject = st.selectbox("Select subject", current, key="kg_subj_sel")
+        kg_subject    = st.selectbox("Select subject", current, key="kg_subj_sel")
         topics_for_kg = get_topics(kg_subject)
-        kg_exists     = KnowledgeGraph.exists(kg_subject)
 
-        if kg_exists:
-            cached_kg = KnowledgeGraph.load(kg_subject)
-            stats     = cached_kg.stats() if cached_kg else {}
+        kg_exists = False
+        cached_kg = None
+        try:
+            from kg.kg_engine import KnowledgeGraph
+            kg_exists = KnowledgeGraph.exists(kg_subject)
+            if kg_exists:
+                cached_kg = KnowledgeGraph.load(kg_subject)
+        except Exception:
+            pass
+
+        if kg_exists and cached_kg:
+            stats = cached_kg.stats() if cached_kg else {}
             st.markdown(f"""
             <div style="background:#081810;border:1px solid #065f35;border-radius:12px;
                         padding:14px;display:flex;gap:24px;align-items:center;margin-bottom:10px;">
@@ -344,6 +345,9 @@ with col_left:
             if st.button(btn_lbl, type="primary", use_container_width=True):
                 with st.spinner(f"Building Knowledge Graph for {kg_subject}... (30–60s)"):
                     try:
+                        from kg.kg_engine import build_knowledge_graph, KnowledgeGraph
+                        from groq import Groq
+
                         try:
                             api_key = st.secrets["GROQ_API_KEY"]
                         except Exception:
@@ -351,7 +355,7 @@ with col_left:
                                 api_key = st.secrets["supabase"]["GROQ_API_KEY"]
                             except Exception:
                                 api_key = os.environ.get("GROQ_API_KEY", "")
-                        from groq import Groq
+
                         client = Groq(api_key=api_key)
                         kg     = build_knowledge_graph(kg_subject, topics_for_kg, client, force_rebuild=True)
                         stats  = kg.stats()
@@ -365,8 +369,10 @@ with col_left:
         else:
             st.info("Upload a PDF for this subject first to extract topics.")
 
-# ══ RIGHT: Add subjects ═══════════════════════════════════════════════════════
+
+# ══ RIGHT ══════════════════════════════════════════════════════════════════════
 with col_right:
+
     st.markdown('<div class="section-title" style="color:#10b981;">➕ Add Subject</div>', unsafe_allow_html=True)
 
     new_subject = st.text_input(
@@ -388,18 +394,17 @@ with col_right:
 
     st.divider()
 
-    # ── Quick Add ─────────────────────────────────────────────────────────────
     st.markdown('<div class="section-title" style="color:#4a6080;">⚡ Quick Add</div>', unsafe_allow_html=True)
 
     QUICK = [
-        ("💻", "Data Structures"),  ("🧮", "Algorithms"),
-        ("🤖", "Machine Learning"), ("🌐", "Computer Networks"),
-        ("🗄️", "Database Systems"), ("⚙️", "Operating Systems"),
-        ("🔢", "Linear Algebra"),   ("📊", "Statistics"),
+        ("💻", "Data Structures"),   ("🧮", "Algorithms"),
+        ("🤖", "Machine Learning"),  ("🌐", "Computer Networks"),
+        ("🗄️", "Database Systems"),  ("⚙️", "Operating Systems"),
+        ("🔢", "Linear Algebra"),    ("📊", "Statistics"),
         ("🐍", "Python Programming"),("☕", "Java Programming"),
-        ("🌍", "Web Development"),  ("🔐", "Cyber Security"),
-        ("📱", "Mobile Dev"),       ("☁️", "Cloud Computing"),
-        ("🧠", "Deep Learning"),    ("📡", "Computer Architecture"),
+        ("🌍", "Web Development"),   ("🔐", "Cyber Security"),
+        ("📱", "Mobile Dev"),        ("☁️", "Cloud Computing"),
+        ("🧠", "Deep Learning"),     ("📡", "Computer Architecture"),
     ]
 
     q1, q2 = st.columns(2)
@@ -424,7 +429,6 @@ with col_right:
 
     st.divider()
 
-    # ── How it works ──────────────────────────────────────────────────────────
     st.markdown("""
     <div style="background:#0d1524;border:1px solid #1a2540;border-radius:14px;padding:18px 20px;">
         <div style="font-size:0.7rem;font-weight:700;color:#3b82f6;
