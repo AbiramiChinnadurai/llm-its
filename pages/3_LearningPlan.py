@@ -370,6 +370,10 @@ with col_side:
                 for s in subjects
             ]
             plan_text = generate_learning_plan(llm_profile, disp_sum, weak_topics_by_subject)
+            if plan_text.startswith("[Error"):
+                st.error(f"Failed to generate roadmap: {plan_text}")
+                st.stop()
+                
             snap      = get_mastery_snapshot(disp_sum)
             save_learning_plan(uid, plan_text, weak_topics_by_subject, snap, deadline_str, days_left)
             plan_id = get_latest_plan_id(uid)

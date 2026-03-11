@@ -8,6 +8,7 @@ import os
 import tempfile
 from rag.rag_pipeline import build_faiss_index, index_exists, extract_topics_from_pdf
 from database.db import save_topics, get_topics, topics_exist
+from kg.kg_engine import build_knowledge_graph, KnowledgeGraph
 
 st.set_page_config(page_title="Upload Syllabus | LLM-ITS", page_icon="📄", layout="wide")
 
@@ -147,6 +148,61 @@ if uploaded_file:
             st.error(f"❌ Error: {e}")
         finally:
             os.unlink(tmp_path)
+
+# ── Build Knowledge Graph ────────────────────────────────────────────────────
+st.divider()
+st.markdown('<div class="hud-label" style="font-size:1rem; margin-bottom:16px; color:#d4dbe8;">🕸️ Knowledge Graph</div>', unsafe_allow_html=True)
+
+kg_cols = st.columns(len(subjects))
+for kg_col, subj in zip(kg_cols, subjects):
+    with kg_col:
+        kg_exists = KnowledgeGraph.exists(subj)
+        topics_for_kg = get_topics(subj)
+        if kg_exists:
+            cached_kg = KnowledgeGraph.load(subj)
+            stats = cached_kg.stats() if cached_kg else {}
+            st.markdown(f"""
+<div style="background:#081810;border:1px solid #065f35;border-radius:12px;padding:14px;text-align:center;margin-bottom:8px;">
+  <div style="font-size:1.4rem;font-weight:800;color:#34d399;">{stats.get('nodes',0)}</div>
+  <div style="font-size:0.68rem;color:#2d5a40;text-transform:uppercase;letter-spacing:0.1em;">concepts</div>
+  <div style="font-size:0.68rem;color:#2d5a40;margin-top:2px;">{stats.get('edges',0)} relations</div>
+  <div style="font-size:0.7rem;color:#10b981;margin-top:6px;font-weight:600;">✓ KG Ready — {subj}</div>
+</div>""", unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+<div style="background:#0d1524;border:1px solid #1a2540;border-radius:12px;padding:14px;text-align:center;margin-bottom:8px;">
+  <div style="font-size:1.4rem;">🕸️</div>
+  <div style="font-size:0.7rem;color:#4a6080;margin-top:4px;">{subj}</div>
+  <div style="font-size:0.68rem;color:#2a3a50;margin-top:2px;">KG not built yet</div>
+</div>""", unsafe_allow_html=True)
+
+        if topics_for_kg:
+            btn_label = "🔄 Rebuild KG" if kg_exists else "🕸️ Build KG"
+            if st.button(btn_label, key=f"build_kg_{subj}", use_container_width=True):
+                with st.spinner(f"Building Knowledge Graph for {subj}... (30-60s)"):
+                    try:
+                        import os
+                        try:
+                            api_key = st.secrets["GROQ_API_KEY"]
+                        except Exception:
+                            try:
+                                api_key = st.secrets["supabase"]["GROQ_API_KEY"]
+                            except Exception:
+                                api_key = os.environ.get("GROQ_API_KEY", "")
+                        from groq import Groq
+                        client = Groq(api_key=api_key)
+                        kg = build_knowledge_graph(subj, topics_for_kg, client, force_rebuild=True)
+                        stats = kg.stats()
+                        st.success(f"✅ KG built! {stats['nodes']} concepts, {stats['edges']} prerequisite relations")
+                        # Clear session state cache so it reloads
+                        cache_key = f"kg_{subj.lower().strip()}"
+                        if cache_key in st.session_state:
+                            del st.session_state[cache_key]
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ KG build failed: {e}")
+        else:
+            st.caption("Upload PDF first to extract topics")
 
 # ── Show existing topics ──────────────────────────────────────────────────────
 st.divider()

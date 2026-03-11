@@ -1,10 +1,6 @@
 """
 llm/llm_engine.py
 LLM inference via Groq API (LLaMA-3 8B) — free, fast, no local setup needed.
-Get your free API key at: https://console.groq.com
-
-Add to .streamlit/secrets.toml:
-    GROQ_API_KEY = "gsk_..."
 """
 
 import os
@@ -13,12 +9,10 @@ import re
 import streamlit as st
 from groq import Groq
 
-MODEL_NAME = "llama-3.1-8b-instant"  # Updated active LLaMA3 8B model on Groq
+MODEL_NAME = "llama-3.1-8b-instant"
 
-# ── Client ────────────────────────────────────────────────────────────────────
 def get_client():
     try:
-        # Check if it's placed under the [supabase] block by mistake or intentionally
         if "supabase" in st.secrets and "GROQ_API_KEY" in st.secrets["supabase"]:
             api_key = st.secrets["supabase"]["GROQ_API_KEY"]
         else:
@@ -31,7 +25,6 @@ def get_client():
 
 
 def _call(prompt, temperature=0.7, max_tokens=512):
-    """Core Groq call — replaces ollama.generate()."""
     client = get_client()
     response = client.chat.completions.create(
         model=MODEL_NAME,
@@ -42,7 +35,6 @@ def _call(prompt, temperature=0.7, max_tokens=512):
     return response.choices[0].message.content.strip()
 
 
-# ── AEL MODALITY DEFINITIONS ──────────────────────────────────────────────────
 MODALITY_LABELS = {
     0: "Standard Prose",
     1: "Step-by-Step Decomposition",
@@ -60,9 +52,7 @@ MODALITY_INSTRUCTIONS = {
 }
 
 
-# ── PROMPT BUILDER ────────────────────────────────────────────────────────────
-
-def build_explanation_prompt(query, context, profile, modality_index, history=None):
+def build_explanation_prompt(query, context, profile, modality_index, history=None, emotion_modifier=""):
     edu_level    = profile.get("education_level", "undergraduate")
     subject      = profile.get("current_subject", "the subject")
     mastery      = profile.get("mastery_level", "Moderate")
@@ -71,7 +61,10 @@ def build_explanation_prompt(query, context, profile, modality_index, history=No
     modality_ins = MODALITY_INSTRUCTIONS.get(modality_index, MODALITY_INSTRUCTIONS[0])
     weak_str     = ", ".join(weak_topics) if weak_topics else "None identified yet"
 
-    system_prompt = f"""You are a personalized intelligent tutor for a {edu_level} student studying {subject}.
+    # Emotion-aware instruction block (prepended if triggered)
+    emotion_block = f"{emotion_modifier}\n\n" if emotion_modifier else ""
+
+    system_prompt = f"""{emotion_block}You are a personalized intelligent tutor for a {edu_level} student studying {subject}.
 
 STUDENT PROFILE:
 - Mastery Level: {mastery}
@@ -160,9 +153,9 @@ Generate a clear, structured day-by-day study schedule."""
 
 # ── LLM CALLS ─────────────────────────────────────────────────────────────────
 
-def generate_explanation(query, context, profile, modality_index, history=None):
-    """Generate a personalized explanation using Groq."""
-    prompt = build_explanation_prompt(query, context, profile, modality_index, history)
+def generate_explanation(query, context, profile, modality_index, history=None, emotion_modifier=""):
+    """Generate a personalized explanation using Groq. Emotion-aware when modifier is provided."""
+    prompt = build_explanation_prompt(query, context, profile, modality_index, history, emotion_modifier)
     try:
         return _call(prompt, temperature=0.7, max_tokens=512)
     except Exception as e:

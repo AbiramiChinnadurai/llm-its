@@ -13,6 +13,14 @@ from database.db import (log_quiz_attempt, get_error_topics, get_ael_modality,
                           get_subject_summary, add_xp, get_level_title)
 from llm.llm_engine import generate_quiz_question, MODALITY_LABELS, MODEL_NAME
 
+# ── Emotion-Aware Re-Routing ──────────────────────────────────────────────────
+from emotion.emotion_engine import get_emotion_prompt_modifier
+from emotion.emotion_widget import (
+    get_tracker, reset_tracker,
+    render_emotion_sidebar, render_reroute_banner,
+    render_session_emotion_summary
+)
+
 st.set_page_config(page_title="Quiz | LLM-ITS", page_icon="🧠", layout="wide")
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
@@ -330,6 +338,9 @@ for key, default in [
     if key not in st.session_state:
         st.session_state[key] = default
 
+# ── Emotion tracker (one per quiz session) ────────────────────────────────────
+quiz_tracker = get_tracker("quiz_emotion_tracker")
+
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="quiz-header">
@@ -385,7 +396,13 @@ with col_side:
                   "quiz_question","code_question","short_q","grading_result",
                   "quiz_answered","student_code","student_answer"]:
             st.session_state[k] = [] if "results" in k or "questions" in k or "code" in k or "answer" in k else None if k not in ["quiz_score","quiz_total"] else 0
+        reset_tracker("quiz_emotion_tracker")
+        quiz_tracker = get_tracker("quiz_emotion_tracker")
         st.rerun()
+
+    # ── Emotion Monitor ───────────────────────────────────────────────────────
+    st.divider()
+    render_emotion_sidebar(quiz_tracker)
 
 # ══ MAIN ══════════════════════════════════════════════════════════════════════
 with col_main:
@@ -484,6 +501,13 @@ with col_main:
                     recent_acc = get_recent_accuracy(uid, subject, topic, n=2)
                     new_m      = update_ael(uid, subject, topic, recent_acc)
 
+                    # ── Emotion Detection ─────────────────────────────────────
+                    quiz_tracker.record(
+                        text=choice,
+                        latency_s=elapsed,
+                        correct=is_correct
+                    )
+
                     # XP
                     xp_gained, _, new_level, leveled_up = add_xp(uid, accuracy)
                     st.session_state.session_results.append({
@@ -495,6 +519,14 @@ with col_main:
                     st.session_state["_last_xp"]      = xp_gained
                     st.session_state["_last_leveled"]  = leveled_up
                     st.session_state["_last_level"]    = new_level
+
+                    # Evaluate emotion every 3 answers
+                    if quiz_tracker.should_evaluate():
+                        emotion_result = quiz_tracker.evaluate(topic=topic)
+                        st.session_state["_emotion_result"] = emotion_result
+                    else:
+                        st.session_state.pop("_emotion_result", None)
+
                     st.rerun()
 
             else:
@@ -507,6 +539,11 @@ with col_main:
                     st.markdown(f'<div class="result-wrong"><div class="result-title">❌ Incorrect</div><div class="result-body">Correct answer: <strong>{q["options"][correct_idx]}</strong></div></div>', unsafe_allow_html=True)
 
                 st.info(f"💡 **Explanation:** {q['explanation']}")
+
+                # ── Emotion re-routing banner ─────────────────────────────────
+                emotion_result = st.session_state.pop("_emotion_result", None)
+                if emotion_result and emotion_result.should_reroute:
+                    render_reroute_banner(emotion_result)
 
                 xp = st.session_state.pop("_last_xp", 0)
                 if xp:
@@ -813,3 +850,5 @@ with col_main:
                     f" | +{r.get('xp',0)} XP"
                     f"{score_str}"
                 )
+            # ── Emotion journey summary ───────────────────────────────────────
+            render_session_emotion_summary(quiz_tracker)

@@ -14,6 +14,27 @@ from database.db import (get_subject_summary, get_error_topics,
 from rag.rag_pipeline import retrieve_chunks, format_context, index_exists
 from llm.llm_engine import generate_explanation, MODALITY_LABELS, MODEL_NAME
 
+# ── Emotion-Aware Re-Routing ──────────────────────────────────────────────────
+from emotion.emotion_engine import get_emotion_prompt_modifier
+from emotion.emotion_widget import (
+    get_tracker, reset_tracker,
+    render_emotion_sidebar, render_reroute_banner, render_emotion_chip
+)
+
+# ── Knowledge Graph ────────────────────────────────────────────────────────────
+from kg.kg_engine import build_kg_context, validate_topics_against_kg
+from kg.kg_widget import (
+    render_kg_status, render_prereq_chain,
+    render_kg_context_card, render_hallucination_score, get_or_build_kg
+)
+
+# ── XAI Explainer ──────────────────────────────────────────────────────────────
+from xai.xai_engine import build_xai_explanation, explain_counterfactual, get_xai_system_note
+from xai.xai_widget import (
+    render_xai_panel, render_xai_strip,
+    render_counterfactual, render_xai_sidebar
+)
+
 st.set_page_config(page_title="Study | LLM-ITS", page_icon="📖", layout="wide")
 
 # ── Professional CSS ──────────────────────────────────────────────────────────
@@ -115,7 +136,27 @@ if "chat_history"   not in st.session_state: st.session_state.chat_history   = [
 if "study_subject"  not in st.session_state: st.session_state.study_subject  = subjects[0]
 if "selected_topic" not in st.session_state: st.session_state.selected_topic = None
 
+# ── Emotion tracker (one per study session) ───────────────────────────────────
+study_tracker = get_tracker("study_emotion_tracker")
+
 # ── Ollama helper (free, local) ───────────────────────────────────────────────
+def _get_groq_client():
+    """Get a Groq client for KG building."""
+    try:
+        import os
+        try:
+            api_key = st.secrets["GROQ_API_KEY"]
+        except Exception:
+            try:
+                api_key = st.secrets["supabase"]["GROQ_API_KEY"]
+            except Exception:
+                api_key = os.environ.get("GROQ_API_KEY", "")
+        from groq import Groq
+        return Groq(api_key=api_key)
+    except Exception:
+        return None
+
+
 def call_llm(system_prompt, messages, max_tokens=1000):
     """Call Groq API (LLaMA3 8B) — free, fast, no local setup needed."""
     try:
@@ -321,6 +362,8 @@ with col_side:
         st.session_state.study_subject  = subject
         st.session_state.selected_topic = None
         st.session_state.chat_history   = []
+        reset_tracker("study_emotion_tracker")
+        study_tracker = get_tracker("study_emotion_tracker")
 
     topics = get_topics(subject)
 
@@ -377,6 +420,15 @@ with col_side:
         st.markdown('<div class="status-indexed">✅ Syllabus indexed</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="status-missing">⚠️ Upload syllabus first</div>', unsafe_allow_html=True)
+
+    # ── Emotion Monitor ───────────────────────────────────────────────────────
+    st.divider()
+    render_emotion_sidebar(study_tracker)
+
+    # ── Knowledge Graph Status ────────────────────────────────────────────────
+    st.divider()
+    kg = get_or_build_kg(subject, get_topics(subject), _get_groq_client()) if get_topics(subject) else None
+    render_kg_status(kg, subject)
 
 # ── MAIN: Chat + AI features ──────────────────────────────────────────────────
 with col_main:
@@ -474,6 +526,22 @@ with col_main:
         with st.chat_message("user"):
             st.markdown(q)
 
+        # ── XAI: detect "why not X?" counterfactual queries ──────────────────
+        import re as _re
+        _cf_pattern = r"why (?:not|skip|avoid)\s+([A-Za-z ]{3,40})"
+        _cf_match = _re.search(_cf_pattern, q, _re.IGNORECASE)
+        if _cf_match and _kg:
+            _rejected = _cf_match.group(1).strip()
+            _cf = explain_counterfactual(_rejected, selected_topic, _kg, _mastered if '_mastered' in dir() else [])
+            with st.chat_message("assistant"):
+                render_counterfactual(_cf)
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": f"**Why not '{_rejected}'?** {_cf.reason}",
+                "modality": 0, "latency": 0, "chunks": 0
+            })
+            st.stop()
+
         with st.chat_message("assistant"):
             with st.spinner("Searching syllabus and generating answer..."):
                 summaries   = get_subject_summary(uid)
@@ -500,18 +568,88 @@ with col_main:
                             "tutor":   hist[i+1]["content"]
                         })
 
+                # ── KG: build context for this topic ──────────────────────────
+                _kg = get_or_build_kg(subject, get_topics(subject), _get_groq_client()) if get_topics(subject) else None
+                _mastered = [t for t in get_topics(subject)
+                             if next((s["avg_accuracy"] for s in summaries
+                                      if s["subject"] == subject), 0) >= 75]
+                kg_context = build_kg_context(_kg, selected_topic, _mastered) if _kg else ""
+
+                # ── Emotion: record text signal NOW (before LLM) ─────────────
+                study_tracker.record(text=q)
+
+                emotion_modifier = ""
+                # Evaluate every 3 messages (text + pattern signals only at this point)
+                if study_tracker.should_evaluate():
+                    _pre_result = study_tracker.evaluate(topic=selected_topic)
+                    emotion_modifier = get_emotion_prompt_modifier(_pre_result)
+                    st.session_state["_emotion_result"] = _pre_result
+
+                # ── XAI: build explanation from all 3 sources ─────────────────
+                _accuracy = next((s["avg_accuracy"] for s in summaries
+                                   if s["subject"] == subject), 60.0)
+                _emotion_state  = study_tracker.last_state
+                _emotion_action = st.session_state.get("_last_emotion_action", "none")
+                xai_explanation = build_xai_explanation(
+                    topic          = selected_topic,
+                    subject        = subject,
+                    query          = q,
+                    kg             = _kg,
+                    mastered_topics= _mastered,
+                    mastery_level  = mastery,
+                    accuracy       = _accuracy,
+                    modality_idx   = m_idx,
+                    emotion_state  = _emotion_state,
+                    emotion_action = _emotion_action,
+                )
+                st.session_state["_last_xai"] = xai_explanation
+
+                # ── LLM call (KG + XAI context prepended) ────────────────────
+                xai_note        = get_xai_system_note(xai_explanation)
+                enriched_context = (xai_note + "\n\n" + kg_context + "\n\n" + context) if kg_context else (xai_note + "\n\n" + context)
+
                 t0       = time.time()
-                response = generate_explanation(q, context, llm_profile, m_idx, history_turns)
+                response = generate_explanation(
+                    q, enriched_context, llm_profile, m_idx, history_turns,
+                    emotion_modifier=emotion_modifier
+                )
                 elapsed  = round(time.time() - t0, 2)
 
+                # ── Emotion: now update tracker with real latency ─────────────
+                study_tracker.latencies.append(elapsed)
+                emotion_result = st.session_state.pop("_emotion_result", None)
+
+            # ── Show re-routing banner BEFORE response if triggered ────────────
+            if emotion_result and emotion_result.should_reroute:
+                render_reroute_banner(emotion_result)
+
+            # ── KG Insight card above response ────────────────────────────────
+            if _kg:
+                render_kg_context_card(_kg, selected_topic, _mastered)
+
             st.markdown(response)
+
+            # ── Meta row: AEL + timing + chunks + emotion chip ────────────────
+            current_emotion = study_tracker.last_state
             st.markdown(f"""
             <div class="meta-row">
                 <span class="meta-pill">🔄 {MODALITY_LABELS.get(m_idx, '')}</span>
                 <span class="meta-pill">⏱️ {elapsed}s</span>
-                <span class="meta-pill">📚 {len(chunks)} chunks retrieved</span>
+                <span class="meta-pill">📚 {len(chunks)} chunks</span>
             </div>
             """, unsafe_allow_html=True)
+            render_emotion_chip(current_emotion)
+
+            # ── KG hallucination guard badge ──────────────────────────────────
+            if _kg:
+                validation = validate_topics_against_kg(_kg, response)
+                render_hallucination_score(validation)
+
+            # ── XAI: strip + full panel ───────────────────────────────────────
+            _xai = st.session_state.get("_last_xai")
+            if _xai:
+                render_xai_strip(_xai)
+                render_xai_panel(_xai)
 
             if not chunks:
                 st.warning("⚠️ No syllabus found — upload your PDF in **Upload Syllabus**.")
