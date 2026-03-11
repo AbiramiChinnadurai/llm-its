@@ -458,14 +458,19 @@ with tab1:
 
         # ── SIDEBAR: Topic list ───────────────────────────────────────────────────────
         with col_side:
-            st.markdown('<div class="sidebar-label">Subject</div>', unsafe_allow_html=True)
-            subject = st.selectbox("", subjects, key="study_subj_sel", label_visibility="collapsed")
-            if subject != st.session_state.study_subject:
-                st.session_state.study_subject  = subject
-                st.session_state.selected_topic = None
-                st.session_state.chat_history   = []
-                reset_tracker("study_emotion_tracker")
-                study_tracker = get_tracker("study_emotion_tracker")
+            # ✅ Just read from session state — no dropdown
+            subject = st.session_state.get("study_subject") or subjects[0]
+            st.session_state["study_subject"] = subject
+
+            st.markdown(f"""
+            <div style="background:#0d1a2e;border:1px solid #1d4ed8;border-radius:10px;
+                        padding:10px 14px;margin-bottom:16px;">
+                <div style="font-size:0.65rem;color:#4a6080;text-transform:uppercase;
+                letter-spacing:0.1em;margin-bottom:3px;">Studying</div>
+                <div style="font-family:'Syne',sans-serif;font-size:0.95rem;
+                font-weight:700;color:#60a5fa;">📚 {subject}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
             topics = get_topics(subject)
 
