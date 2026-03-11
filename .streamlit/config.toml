@@ -1,0 +1,3 @@
+[theme]
+# Default to dark so our app loads in dark mode
+base = "dark"
