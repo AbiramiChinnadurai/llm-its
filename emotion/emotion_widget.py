@@ -286,76 +286,47 @@ def render_emotion_sidebar(tracker: EmotionSessionTracker):
 # ─── Widget 2: Re-routing Banner ─────────────────────────────────────────────
 
 def render_reroute_banner(result: EmotionResult):
-    """Full-width re-routing banner with gradient top border and XAI explanation."""
+    """Full-width re-routing banner — no HTML comments, fully inlined."""
     if not result.should_reroute:
         return
 
     cfg = EMOTION_CONFIG.get(result.state, EMOTION_CONFIG[NEUTRAL])
     import re as _re
+    lines = result.xai_reason.strip().split("\n")
+    body_text = "\n".join(lines[2:]) if len(lines) > 2 else result.xai_reason
+    body_text = _re.sub(r"\*\*(.*?)\*\*", r"<strong style=\'color:#e2e8f0;\'></strong>", body_text)
+    body_text = body_text.replace("\n\n", "<br><br>").replace("\n", "<br>")
 
-    # Remove ALL HTML tags and comments coming from XAI text
-    body_text = _re.sub(r'<[^>]+>', '', result.xai_reason)
-    body_text = _re.sub(r'<!--.*?-->', '', body_text)
+    bg       = cfg["bg"]
+    border   = cfg["border"]
+    gradient = cfg["gradient"]
+    color    = cfg["color"]
+    emoji    = cfg["emoji"]
+    label    = cfg["label"]
+    action   = cfg["action_label"]
 
-    # Remove markdown bold
-    body_text = _re.sub(r'\*\*(.*?)\*\*', r'\1', body_text)
-
-    # Convert line breaks to HTML
-    body_text = body_text.replace('\n\n', '<br><br>').replace('\n', '<br>')
-
-    st.markdown(f"""
-<div style="position:relative;background:{cfg['bg']};
-            border:1px solid {cfg['border']};border-radius:14px;
-            padding:16px 20px;margin:14px 0;overflow:hidden;">
-
-  <!-- Left accent bar -->
-  <div style="position:absolute;left:0;top:0;bottom:0;width:4px;
-              background:{cfg['gradient']};border-radius:14px 0 0 14px;"></div>
-
-  <div style="padding-left:8px;">
-    <!-- Icon + title -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <div style="width:32px;height:32px;border-radius:10px;
-                  background:{cfg['gradient']};display:flex;
-                  align-items:center;justify-content:center;
-                  font-size:1.1rem;flex-shrink:0;
-                  box-shadow:0 4px 12px {cfg['color']}44;">
-        {cfg['emoji']}
-      </div>
-
-      <div>
-        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
-                    letter-spacing:0.15em;color:{cfg['color']};margin-bottom:2px;">
-          ↻ Path Adjusted
-        </div>
-
-        <div style="font-size:0.95rem;font-weight:700;color:#f0f6ff;">
-          {cfg['label']} detected
-        </div>
-      </div>
-    </div>
-
-    <!-- Body text -->
-    <div style="font-size:0.83rem;line-height:1.7;color:#8090a8;margin-bottom:12px;">
-      {body_text}
-    </div>
-
-    <!-- Action pill -->
-    <div style="display:inline-flex;align-items:center;gap:6px;
-                background:{cfg['bg']};border:1px solid {cfg['border']};
-                border-radius:20px;padding:5px 14px;">
-      <div style="width:6px;height:6px;border-radius:50%;
-                  background:{cfg['color']};box-shadow:0 0 6px {cfg['color']};"></div>
-
-      <span style="font-size:0.72rem;font-weight:600;color:{cfg['color']};
-                   letter-spacing:0.05em;text-transform:uppercase;">
-        {cfg['action_label']}
-      </span>
-    </div>
-
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    html = (
+        f'<div style="position:relative;background:{bg};border:1px solid {border};' +
+        'border-radius:14px;padding:16px 20px;margin:14px 0;overflow:hidden;">' +
+        f'<div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:{gradient};border-radius:14px 0 0 14px;"></div>' +
+        f'<div style="position:absolute;top:0;left:4px;right:0;height:1px;background:linear-gradient(90deg,{color}88,transparent);"></div>' +
+        '<div style="padding-left:8px;">' +
+        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+        f'<div style="width:32px;height:32px;border-radius:10px;background:{gradient};' +
+        'display:flex;align-items:center;justify-content:center;' +
+        f'font-size:1.1rem;flex-shrink:0;box-shadow:0 4px 12px {color}44;">{emoji}</div>' +
+        '<div>' +
+        f'<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:{color};margin-bottom:2px;">&#8635; Path Adjusted</div>' +
+        f'<div style="font-size:0.95rem;font-weight:700;color:#f0f6ff;">{label} detected</div>' +
+        '</div></div>' +
+        f'<div style="font-size:0.83rem;line-height:1.7;color:#8090a8;margin-bottom:12px;">{body_text}</div>' +
+        f'<div style="display:inline-flex;align-items:center;gap:6px;background:{bg};' +
+        f'border:1px solid {border};border-radius:20px;padding:5px 14px;">' +
+        f'<div style="width:6px;height:6px;border-radius:50%;background:{color};box-shadow:0 0 6px {color};"></div>' +
+        f'<span style="font-size:0.72rem;font-weight:600;color:{color};letter-spacing:0.05em;text-transform:uppercase;">{action}</span>' +
+        '</div></div></div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # ─── Widget 3: Emotion Chip ───────────────────────────────────────────────────

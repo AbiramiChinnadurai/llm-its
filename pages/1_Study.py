@@ -13,7 +13,6 @@ from database.db import (get_subject_summary, get_error_topics,
                           log_hint_usage, save_socratic_session, get_socratic_sessions)
 from rag.rag_pipeline import retrieve_chunks, format_context, index_exists
 from llm.llm_engine import generate_explanation, MODALITY_LABELS, MODEL_NAME
-from database.db import log_study_interaction
 
 # ── Emotion-Aware Re-Routing ──────────────────────────────────────────────────
 from emotion.emotion_engine import get_emotion_prompt_modifier
@@ -541,16 +540,6 @@ with col_main:
                 "content": f"**Why not '{_rejected}'?** {_cf.reason}",
                 "modality": 0, "latency": 0, "chunks": 0
             })
-            log_study_interaction(
-                uid,
-                subject,
-                selected_topic,
-                q,
-                response,
-                m_idx,
-                elapsed,
-                len(chunks)
-            )
             st.stop()
 
         with st.chat_message("assistant"):
@@ -595,6 +584,9 @@ with col_main:
                     _pre_result = study_tracker.evaluate(topic=selected_topic)
                     emotion_modifier = get_emotion_prompt_modifier(_pre_result)
                     st.session_state["_emotion_result"] = _pre_result
+                    if _pre_result.should_reroute:
+                        st.session_state["_show_reroute_banner"] = True
+                        st.session_state["_banner_result"] = _pre_result
 
                 # ── XAI: build explanation from all 3 sources ─────────────────
                 _accuracy = next((s["avg_accuracy"] for s in summaries
@@ -630,9 +622,11 @@ with col_main:
                 study_tracker.latencies.append(elapsed)
                 emotion_result = st.session_state.pop("_emotion_result", None)
 
-            # ── Show re-routing banner BEFORE response if triggered ────────────
-            if emotion_result and emotion_result.should_reroute:
-                render_reroute_banner(emotion_result)
+            # ── Show re-routing banner only when freshly triggered ───────────
+            _show_banner = st.session_state.pop("_show_reroute_banner", False)
+            _banner_result = st.session_state.pop("_banner_result", None)
+            if _show_banner and _banner_result:
+                render_reroute_banner(_banner_result)
 
             # ── KG Insight card above response ────────────────────────────────
             if _kg:
@@ -674,19 +668,6 @@ with col_main:
             "role": "assistant", "content": response,
             "modality": m_idx, "latency": elapsed, "chunks": len(chunks)
         })
-        try:
-            log_study_interaction(
-                uid,
-                subject,
-                selected_topic,
-                q,
-                response,
-                m_idx,
-                elapsed,
-                len(chunks)
-            )
-        except Exception as e:
-            print("Logging failed:", e)
 
     # ── 🤔 Socratic Tutor (at the bottom) ────────────────────────────────────
     render_socratic_tutor(uid, subject, selected_topic)
