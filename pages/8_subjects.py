@@ -10,10 +10,16 @@ import os
 import tempfile
 from database.db import get_topics, topics_exist, save_topics, get_connection
 from components.sidebar import render_sidebar
+from utils.theme import inject_theme, render_theme_toggle, get_theme
 
 st.set_page_config(page_title="Subjects | LLM-ITS", page_icon="📚", layout="wide")
 
 render_sidebar()
+
+# ── Theme toggle in sidebar ───────────────────────────────────────────────────
+with st.sidebar:
+    st.divider()
+    render_theme_toggle()
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 if not st.session_state.get("uid"):
@@ -24,65 +30,7 @@ uid     = st.session_state.uid
 profile = st.session_state.profile
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
-
-html, body, [class*="css"]  { font-family: 'Instrument Sans', sans-serif; }
-.stApp                      { background: #080c14; color: #d4dbe8; }
-[data-testid="stSidebarNav"]{ display: none !important; }
-hr                          { border-color: #1a2540 !important; }
-
-[data-baseweb="input"]  { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
-[data-baseweb="select"] { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
-
-.stButton > button {
-    border-radius: 10px !important; border: 1px solid #1a2540 !important;
-    background: #0d1524 !important; color: #8090a8 !important;
-    font-family: 'Instrument Sans', sans-serif !important;
-    transition: all 0.18s !important;
-}
-.stButton > button:hover {
-    background: #1a2540 !important; border-color: #3b82f6 !important;
-    color: #f0f4ff !important; transform: translateY(-1px) !important;
-}
-button[kind="primary"] {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-    border-color: #3b82f6 !important; color: #fff !important; font-weight: 600 !important;
-}
-button[kind="primary"]:hover {
-    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
-    box-shadow: 0 4px 20px rgba(37,99,235,0.35) !important;
-}
-.subj-card {
-    background: #0d1524; border: 1px solid #1a2540;
-    border-radius: 14px; padding: 10px 14px; margin-bottom: 0;
-    transition: border-color 0.2s;
-}
-.subj-card:hover { border-color: #2563eb; }
-.subj-card-name  { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: #f0f6ff; }
-.badge {
-    display: inline-block; border-radius: 20px;
-    padding: 2px 10px; font-size: 0.65rem; font-weight: 600;
-    border: 1px solid; margin-left: 8px; vertical-align: middle;
-}
-.badge-green  { background: #081810; color: #34d399; border-color: #065f35; }
-.badge-blue   { background: #0d1a2e; color: #60a5fa; border-color: #1d4ed8; }
-.badge-yellow { background: #1c1005; color: #fbbf24; border-color: #92400e; }
-.section-title {
-    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.15em; margin-bottom: 14px;
-}
-.step-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
-.step-num {
-    width: 24px; height: 24px; border-radius: 50%;
-    background: #1d4ed8; color: #fff; font-size: 0.7rem; font-weight: 800;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; margin-top: 1px;
-}
-.step-text { font-size: 0.78rem; color: #8090a8; line-height: 1.5; }
-</style>
-""", unsafe_allow_html=True)
+inject_theme()
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("""
