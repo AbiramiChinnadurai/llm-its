@@ -127,9 +127,16 @@ LIGHT = {
 def get_theme() -> dict:
     """
     Returns current theme dict (DARK or LIGHT).
-    Syncs with Streamlit's theme (Settings → Light/Dark). Defaults to dark.
+    Sidebar toggle takes precedence; falls back to Streamlit's theme (Settings menu).
     """
-    # 1. Use Streamlit's theme from Settings menu
+    # 1. Sidebar toggle (explicit user click) takes precedence
+    theme = st.session_state.get("theme")
+    if theme == "light":
+        return LIGHT
+    if theme == "dark":
+        return DARK
+
+    # 2. Fallback: Streamlit's theme from Settings menu
     try:
         if hasattr(st, "context") and hasattr(st.context, "theme"):
             t = getattr(st.context.theme, "type", None)
@@ -140,9 +147,7 @@ def get_theme() -> dict:
     except Exception:
         pass
 
-    # 2. Fallback: sidebar toggle or default dark
-    if st.session_state.get("theme") == "light":
-        return LIGHT
+    # 3. Default dark
     return DARK
 
 
