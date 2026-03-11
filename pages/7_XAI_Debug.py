@@ -14,6 +14,8 @@ Sections:
 import streamlit as st
 import time
 import json
+from components.sidebar import render_sidebar
+render_sidebar()
 
 st.set_page_config(page_title="XAI Debug | LLM-ITS", page_icon="🔬", layout="wide")
 

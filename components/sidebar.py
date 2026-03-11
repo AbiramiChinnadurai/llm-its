@@ -63,7 +63,6 @@ def render_sidebar():
 
         st.page_link("pages/1_Learn.py",          label="📖  Learn")
         st.page_link("pages/4_Dashboard.py",      label="📊  Dashboard")
-        st.page_link("pages/5_UploadSyllabus.py", label="📄  Upload Syllabus")
         st.page_link("pages/6_Notes.py",          label="📝  Notes")
         st.page_link("pages/7_XAI_Debug.py",      label="🔍  XAI Debug")
         st.page_link("pages/8_subjects.py",       label="⚙️  Manage Subjects")

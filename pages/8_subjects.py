@@ -1,18 +1,22 @@
 """
 pages/8_Subjects.py
 ─────────────────────────────────────────────────────────────────────────────
-Subject Manager — add, remove, and reorder subjects from inside the app.
-Updates Supabase profile + st.session_state.profile instantly.
-No need to re-register.
+Subject Manager + Syllabus Upload — all in one clean page.
 ─────────────────────────────────────────────────────────────────────────────
 """
 
 import streamlit as st
-from database.db import get_profile
+import os
+import tempfile
+from database.db import get_profile, get_topics, topics_exist
+from kg.kg_engine import build_knowledge_graph, KnowledgeGraph
+from rag.rag_pipeline import build_faiss_index, index_exists, extract_topics_from_pdf
+from database.db import save_topics
 from components.sidebar import render_sidebar
-render_sidebar()
 
 st.set_page_config(page_title="Subjects | LLM-ITS", page_icon="📚", layout="wide")
+
+render_sidebar()
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 if not st.session_state.get("uid"):
@@ -26,17 +30,25 @@ profile = st.session_state.profile
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
-html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
-.stApp { background: #080c14; color: #d4dbe8; }
-hr { border-color: #1a2540 !important; }
-[data-baseweb="input"] { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
+
+html, body, [class*="css"]  { font-family: 'Instrument Sans', sans-serif; }
+.stApp                      { background: #080c14; color: #d4dbe8; }
+[data-testid="stSidebarNav"]{ display: none !important; }
+hr                          { border-color: #1a2540 !important; }
+
+[data-baseweb="input"]  { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
+[data-baseweb="select"] { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
+
 .stButton > button {
     border-radius: 10px !important; border: 1px solid #1a2540 !important;
     background: #0d1524 !important; color: #8090a8 !important;
     font-family: 'Instrument Sans', sans-serif !important;
     transition: all 0.18s !important;
 }
-.stButton > button:hover { background: #1a2540 !important; border-color: #3b82f6 !important; color: #f0f4ff !important; }
+.stButton > button:hover {
+    background: #1a2540 !important; border-color: #3b82f6 !important;
+    color: #f0f4ff !important; transform: translateY(-1px) !important;
+}
 button[kind="primary"] {
     background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
     border-color: #3b82f6 !important; color: #fff !important; font-weight: 600 !important;
@@ -45,283 +57,364 @@ button[kind="primary"]:hover {
     background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
     box-shadow: 0 4px 20px rgba(37,99,235,0.35) !important;
 }
+
+/* Subject card */
+.subj-card {
+    background: #0d1524;
+    border: 1px solid #1a2540;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+}
+.subj-card:hover { border-color: #2563eb; }
+.subj-card-name  { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: #f0f6ff; }
+.subj-card-meta  { font-size: 0.72rem; color: #4a6080; margin-top: 3px; }
+
+.badge {
+    display: inline-block; border-radius: 20px;
+    padding: 2px 10px; font-size: 0.65rem; font-weight: 600;
+    border: 1px solid; margin-left: 8px; vertical-align: middle;
+}
+.badge-green  { background: #081810; color: #34d399; border-color: #065f35; }
+.badge-blue   { background: #0d1a2e; color: #60a5fa; border-color: #1d4ed8; }
+.badge-yellow { background: #1c1005; color: #fbbf24; border-color: #92400e; }
+
+.section-title {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.15em; margin-bottom: 14px;
+}
+
+.upload-zone {
+    background: #0d1524;
+    border: 1px dashed #2a3a5a;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.step-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 12px;
+}
+.step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #1d4ed8; color: #fff;
+    font-size: 0.7rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+}
+.step-text { font-size: 0.78rem; color: #8090a8; line-height: 1.5; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# ── Header ─────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div style="background:linear-gradient(160deg,#0d1524 0%,#080c14 60%);
-            border:1px solid #1a2540;border-radius:20px;
-            padding:28px 36px;margin-bottom:28px;position:relative;overflow:hidden;">
+            border:1px solid #1a2540; border-radius:20px;
+            padding:28px 36px; margin-bottom:28px; position:relative; overflow:hidden;">
   <div style="position:absolute;right:32px;top:50%;transform:translateY(-50%);
               font-family:'Syne',sans-serif;font-size:5rem;font-weight:800;
               color:rgba(255,255,255,0.022);letter-spacing:0.15em;
               pointer-events:none;user-select:none;">SUBJECTS</div>
-  <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;
-              color:#f0f6ff;margin-bottom:4px;">📚 Subject Manager</div>
+  <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#f0f6ff;margin-bottom:4px;">
+    📚 Subject Manager
+  </div>
   <div style="color:#4a6080;font-size:0.88rem;">
-    Add or remove subjects without re-registering. Changes apply instantly across all pages.
+    Manage your subjects and upload syllabi — everything in one place.
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Load current subjects ─────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def get_current_subjects():
-    """Get subjects from session state profile (source of truth)."""
-    p = st.session_state.profile
+    p   = st.session_state.profile
     raw = p.get("subjects_list") or p.get("subject_list", "")
     if isinstance(raw, list):
         return [s.strip() for s in raw if s.strip()]
     return [s.strip() for s in str(raw).split(",") if s.strip()]
 
-def save_subjects_to_db(uid: str, subjects: list) -> bool:
-    """
-    Update subjects in Supabase profile table.
-    Tries both subjects_list (array) and subject_list (comma string) columns.
-    """
+def save_subjects_to_db(uid, subjects):
     try:
-        import os
         try:
             url = st.secrets["supabase"]["url"]
             key = st.secrets["supabase"]["key"]
         except Exception:
             url = st.secrets.get("SUPABASE_URL", "")
             key = st.secrets.get("SUPABASE_KEY", "")
-
         from supabase import create_client
         client = create_client(url, key)
-
         subjects_str = ", ".join(subjects)
-
-        # Try updating both columns (handle either schema)
         try:
             client.table("profiles").update({
                 "subjects_list": subjects,
                 "subject_list":  subjects_str,
             }).eq("uid", uid).execute()
         except Exception:
-            try:
-                client.table("profiles").update({
-                    "subjects_list": subjects,
-                }).eq("uid", uid).execute()
-            except Exception:
-                client.table("profiles").update({
-                    "subject_list": subjects_str,
-                }).eq("uid", uid).execute()
-
+            client.table("profiles").update({
+                "subject_list": subjects_str,
+            }).eq("uid", uid).execute()
         return True
     except Exception as e:
         st.error(f"DB save failed: {e}")
         return False
 
-def refresh_session_profile(subjects: list):
-    """Update st.session_state.profile so all pages see new subjects immediately."""
+def refresh_session(subjects):
     st.session_state.profile["subjects_list"] = subjects
     st.session_state.profile["subject_list"]  = ", ".join(subjects)
-    # Clear any cached KG/topic state for removed subjects
-    keys_to_clear = [k for k in st.session_state.keys()
-                     if k.startswith("kg_") or k.startswith("topics_")]
-    for k in keys_to_clear:
+    for k in [k for k in st.session_state if k.startswith(("kg_","topics_"))]:
         del st.session_state[k]
 
-# ── Initialize edit state ─────────────────────────────────────────────────────
 if "subjects_edit_list" not in st.session_state:
     st.session_state.subjects_edit_list = get_current_subjects()
 
 current = st.session_state.subjects_edit_list
 
-# ── Layout ────────────────────────────────────────────────────────────────────
-col_left, col_right = st.columns([1.4, 1])
+# ══════════════════════════════════════════════════════════════════════════════
+# TWO COLUMN LAYOUT
+# ══════════════════════════════════════════════════════════════════════════════
+col_left, col_right = st.columns([1, 1], gap="large")
 
-# ══ LEFT: Current subjects list ═══════════════════════════════════════════════
+# ══ LEFT: Subject list ════════════════════════════════════════════════════════
 with col_left:
-    st.markdown("""
-<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;
-            letter-spacing:0.15em;color:#3b82f6;margin-bottom:14px;">
-  📋 Current Subjects
-</div>
-""", unsafe_allow_html=True)
+    st.markdown('<div class="section-title" style="color:#3b82f6;">📋 My Subjects</div>', unsafe_allow_html=True)
 
     if not current:
         st.markdown("""
-<div style="background:#1c0808;border:1px solid #7f1d1d;border-radius:12px;
-            padding:16px;text-align:center;color:#f87171;font-size:0.85rem;">
-  ⚠️ No subjects added yet. Add your first subject on the right.
-</div>
-""", unsafe_allow_html=True)
+        <div style="background:#1c0808;border:1px solid #7f1d1d;border-radius:12px;
+                    padding:20px;text-align:center;color:#f87171;font-size:0.85rem;">
+            ⚠️ No subjects yet. Add one using the panel on the right.
+        </div>
+        """, unsafe_allow_html=True)
     else:
         for i, subj in enumerate(current):
-            # Check if this subject has a KG and topics
-            from kg.kg_engine import KnowledgeGraph
-            from database.db import get_topics, topics_exist
-            has_topics = topics_exist(subj) if hasattr(__import__('database.db', fromlist=['topics_exist']), 'topics_exist') else bool(get_topics(subj))
+            has_topics = bool(get_topics(subj))
             has_kg     = KnowledgeGraph.exists(subj)
+            has_index  = index_exists(subj)
 
-            # Status indicators
-            status_html = ""
             if has_topics and has_kg:
-                status_html = '<span style="font-size:0.65rem;color:#34d399;background:#081810;border:1px solid #065f35;border-radius:20px;padding:2px 8px;margin-left:6px;">✓ PDF + KG</span>'
-            elif has_topics:
-                status_html = '<span style="font-size:0.65rem;color:#60a5fa;background:#0d1a2e;border:1px solid #1d4ed8;border-radius:20px;padding:2px 8px;margin-left:6px;">✓ PDF indexed</span>'
+                badge = '<span class="badge badge-green">✓ PDF + KG</span>'
+            elif has_index:
+                badge = '<span class="badge badge-blue">✓ PDF indexed</span>'
             else:
-                status_html = '<span style="font-size:0.65rem;color:#f59e0b;background:#1c1005;border:1px solid #92400e;border-radius:20px;padding:2px 8px;margin-left:6px;">⚠ No PDF yet</span>'
+                badge = '<span class="badge badge-yellow">⚠ No PDF yet</span>'
 
-            c1, c2, c3, c4 = st.columns([0.4, 3.5, 1, 1])
+            c_num, c_name, c_up, c_del = st.columns([0.3, 3.2, 0.5, 0.5])
 
-            with c1:
+            with c_num:
                 st.markdown(f"""
-<div style="width:32px;height:32px;border-radius:8px;background:#0d1a2e;
-            border:1px solid #1d4ed8;display:flex;align-items:center;
-            justify-content:center;font-size:0.8rem;font-weight:800;
-            color:#60a5fa;margin-top:4px;">{i+1}</div>
-""", unsafe_allow_html=True)
+                <div style="width:30px;height:30px;border-radius:8px;background:#0d1a2e;
+                            border:1px solid #1d4ed8;display:flex;align-items:center;
+                            justify-content:center;font-size:0.75rem;font-weight:800;
+                            color:#60a5fa;margin-top:6px;">{i+1}</div>
+                """, unsafe_allow_html=True)
 
-            with c2:
+            with c_name:
                 st.markdown(f"""
-<div style="background:#0d1524;border:1px solid #1a2540;border-radius:10px;
-            padding:10px 14px;display:flex;align-items:center;">
-  <span style="font-size:0.9rem;font-weight:600;color:#f0f6ff;">{subj}</span>
-  {status_html}
-</div>
-""", unsafe_allow_html=True)
+                <div class="subj-card" style="margin-bottom:0;padding:10px 14px;">
+                    <span class="subj-card-name">{subj}</span>{badge}
+                </div>
+                """, unsafe_allow_html=True)
 
-            with c3:
-                # Move up
-                disabled_up = (i == 0)
-                if not disabled_up:
-                    if st.button("↑", key=f"up_{i}", use_container_width=True, help="Move up"):
+            with c_up:
+                if i > 0:
+                    if st.button("↑", key=f"up_{i}", use_container_width=True):
                         lst = st.session_state.subjects_edit_list
                         lst[i], lst[i-1] = lst[i-1], lst[i]
-                        st.session_state.subjects_edit_list = lst
                         st.rerun()
-                else:
-                    st.markdown('<div style="height:38px;"></div>', unsafe_allow_html=True)
 
-            with c4:
-                if st.button("🗑", key=f"del_{i}", use_container_width=True, help=f"Remove {subj}"):
+            with c_del:
+                if st.button("🗑", key=f"del_{i}", use_container_width=True):
                     st.session_state[f"confirm_del_{i}"] = True
                     st.rerun()
 
-            # Confirm delete dialog
             if st.session_state.get(f"confirm_del_{i}"):
                 st.markdown(f"""
-<div style="background:#1c0808;border:1px solid #7f1d1d;border-radius:10px;
-            padding:12px 14px;margin-bottom:6px;">
-  <span style="font-size:0.82rem;color:#f87171;">
-    Remove <strong>{subj}</strong>? This won't delete your uploaded PDFs.
-  </span>
-</div>
-""", unsafe_allow_html=True)
-                yes_col, no_col = st.columns(2)
-                with yes_col:
-                    if st.button(f"✓ Yes, remove", key=f"yes_del_{i}",
-                                 type="primary", use_container_width=True):
-                        new_list = [s for s in st.session_state.subjects_edit_list if s != subj]
-                        st.session_state.subjects_edit_list = new_list
+                <div style="background:#1c0808;border:1px solid #7f1d1d;border-radius:10px;
+                            padding:10px 14px;margin:4px 0 8px 0;">
+                    <span style="font-size:0.8rem;color:#f87171;">Remove <strong>{subj}</strong>?</span>
+                </div>
+                """, unsafe_allow_html=True)
+                y, n = st.columns(2)
+                with y:
+                    if st.button("✓ Remove", key=f"yes_{i}", type="primary", use_container_width=True):
+                        st.session_state.subjects_edit_list = [s for s in current if s != subj]
                         st.session_state.pop(f"confirm_del_{i}", None)
                         st.rerun()
-                with no_col:
-                    if st.button("✗ Cancel", key=f"no_del_{i}", use_container_width=True):
+                with n:
+                    if st.button("✗ Cancel", key=f"no_{i}", use_container_width=True):
                         st.session_state.pop(f"confirm_del_{i}", None)
                         st.rerun()
 
-    # ── Save button ───────────────────────────────────────────────────────────
-    st.divider()
-    has_changes = (sorted(current) != sorted(get_current_subjects()) or
-                   current != get_current_subjects())
-
-    saved_col, reset_col = st.columns(2)
-
-    with saved_col:
-        btn_label = "💾 Save Changes" if has_changes else "✓ Up to date"
-        if st.button(btn_label, type="primary", use_container_width=True,
-                     disabled=(len(current) == 0)):
-            with st.spinner("Saving to database..."):
-                ok = save_subjects_to_db(uid, current)
-            if ok:
-                refresh_session_profile(current)
-                st.success(f"✅ Saved! {len(current)} subject(s) active across all pages.")
+    # ── Save / Reset ──────────────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    s_col, r_col = st.columns(2)
+    with s_col:
+        if st.button("💾 Save Changes", type="primary", use_container_width=True,
+                     disabled=len(current) == 0):
+            if save_subjects_to_db(uid, current):
+                refresh_session(current)
+                st.success(f"✅ {len(current)} subject(s) saved!")
                 st.rerun()
-
-    with reset_col:
+    with r_col:
         if st.button("↺ Reset", use_container_width=True):
             st.session_state.subjects_edit_list = get_current_subjects()
             st.rerun()
 
+    st.divider()
 
-# ══ RIGHT: Add new subject ════════════════════════════════════════════════════
+    # ── Upload Syllabus (inline, per subject) ─────────────────────────────────
+    st.markdown('<div class="section-title" style="color:#10b981;">⬆️ Upload Syllabus PDF</div>', unsafe_allow_html=True)
+
+    if not current:
+        st.caption("Add subjects first, then upload a PDF for each.")
+    else:
+        selected_subject = st.selectbox("Select subject to upload for", current, key="upload_subj_sel")
+
+        uploaded_file = st.file_uploader("Choose PDF", type=["pdf"], key="syllabus_uploader")
+
+        if uploaded_file:
+            st.markdown(f"""
+            <div style="background:#0d1524;border:1px solid #1a2540;border-radius:10px;
+                        padding:10px 14px;margin-bottom:12px;font-size:0.8rem;color:#8090a8;">
+                📄 <strong style="color:#d4dbe8;">{uploaded_file.name}</strong>
+                &nbsp;·&nbsp; {round(uploaded_file.size/1024, 1)} KB
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button("🔨 Build Index + Extract Topics", type="primary", use_container_width=True):
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(uploaded_file.read())
+                    tmp_path = tmp.name
+                try:
+                    prog = st.progress(0, text="Reading PDF...")
+                    prog.progress(25, text="Extracting topics from headings...")
+                    topics = extract_topics_from_pdf(tmp_path)
+                    save_topics(selected_subject, topics)
+
+                    prog.progress(55, text="Building FAISS index...")
+                    chunk_count = build_faiss_index(selected_subject, tmp_path)
+
+                    prog.progress(100, text="Done!")
+                    st.success(f"✅ **{chunk_count} chunks** indexed · **{len(topics)} topics** extracted")
+
+                    if topics:
+                        with st.expander(f"📋 {len(topics)} topics found", expanded=True):
+                            tcols = st.columns(3)
+                            for i, t in enumerate(topics):
+                                tcols[i % 3].markdown(f"• {t}")
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
+                finally:
+                    os.unlink(tmp_path)
+
+    st.divider()
+
+    # ── Knowledge Graph builder ───────────────────────────────────────────────
+    st.markdown('<div class="section-title" style="color:#8b5cf6;">🕸️ Knowledge Graph</div>', unsafe_allow_html=True)
+
+    if not current:
+        st.caption("Add and upload subjects first.")
+    else:
+        kg_subject = st.selectbox("Select subject", current, key="kg_subj_sel")
+        topics_for_kg = get_topics(kg_subject)
+        kg_exists     = KnowledgeGraph.exists(kg_subject)
+
+        if kg_exists:
+            cached_kg = KnowledgeGraph.load(kg_subject)
+            stats     = cached_kg.stats() if cached_kg else {}
+            st.markdown(f"""
+            <div style="background:#081810;border:1px solid #065f35;border-radius:12px;
+                        padding:14px;display:flex;gap:24px;align-items:center;margin-bottom:10px;">
+                <div style="text-align:center;">
+                    <div style="font-size:1.6rem;font-weight:800;color:#34d399;">{stats.get('nodes',0)}</div>
+                    <div style="font-size:0.65rem;color:#2d5a40;text-transform:uppercase;">concepts</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:1.6rem;font-weight:800;color:#10b981;">{stats.get('edges',0)}</div>
+                    <div style="font-size:0.65rem;color:#2d5a40;text-transform:uppercase;">relations</div>
+                </div>
+                <div style="font-size:0.78rem;color:#34d399;font-weight:600;">✓ KG ready for {kg_subject}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        if topics_for_kg:
+            btn_lbl = "🔄 Rebuild KG" if kg_exists else "🕸️ Build Knowledge Graph"
+            if st.button(btn_lbl, type="primary", use_container_width=True):
+                with st.spinner(f"Building Knowledge Graph for {kg_subject}... (30–60s)"):
+                    try:
+                        try:
+                            api_key = st.secrets["GROQ_API_KEY"]
+                        except Exception:
+                            try:
+                                api_key = st.secrets["supabase"]["GROQ_API_KEY"]
+                            except Exception:
+                                api_key = os.environ.get("GROQ_API_KEY", "")
+                        from groq import Groq
+                        client = Groq(api_key=api_key)
+                        kg     = build_knowledge_graph(kg_subject, topics_for_kg, client, force_rebuild=True)
+                        stats  = kg.stats()
+                        st.success(f"✅ KG built! {stats['nodes']} concepts, {stats['edges']} relations")
+                        cache_key = f"kg_{kg_subject.lower().strip()}"
+                        if cache_key in st.session_state:
+                            del st.session_state[cache_key]
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ KG build failed: {e}")
+        else:
+            st.info("Upload a PDF for this subject first to extract topics.")
+
+# ══ RIGHT: Add subjects ═══════════════════════════════════════════════════════
 with col_right:
-    st.markdown("""
-<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;
-            letter-spacing:0.15em;color:#10b981;margin-bottom:14px;">
-  ➕ Add New Subject
-</div>
-""", unsafe_allow_html=True)
+    st.markdown('<div class="section-title" style="color:#10b981;">➕ Add Subject</div>', unsafe_allow_html=True)
 
-    # ── Custom subject input ──────────────────────────────────────────────────
     new_subject = st.text_input(
         "Subject name",
         placeholder="e.g. Machine Learning, Operating Systems...",
         key="new_subject_input",
         label_visibility="collapsed"
     )
-
     if st.button("➕ Add Subject", type="primary", use_container_width=True,
                  disabled=not new_subject.strip()):
         cleaned = new_subject.strip().title()
         if cleaned in st.session_state.subjects_edit_list:
-            st.warning(f"**{cleaned}** is already in your list.")
+            st.warning(f"**{cleaned}** already added.")
         elif len(st.session_state.subjects_edit_list) >= 8:
-            st.warning("Maximum 8 subjects allowed.")
+            st.warning("Maximum 8 subjects.")
         else:
             st.session_state.subjects_edit_list.append(cleaned)
             st.rerun()
 
     st.divider()
 
-    # ── Quick-add common subjects ─────────────────────────────────────────────
-    st.markdown("""
-<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;
-            letter-spacing:0.15em;color:#4a6080;margin-bottom:12px;">
-  ⚡ Quick Add
-</div>
-""", unsafe_allow_html=True)
+    # ── Quick Add ─────────────────────────────────────────────────────────────
+    st.markdown('<div class="section-title" style="color:#4a6080;">⚡ Quick Add</div>', unsafe_allow_html=True)
 
-    QUICK_SUBJECTS = [
-        ("💻", "Data Structures"),
-        ("🧮", "Algorithms"),
-        ("🤖", "Machine Learning"),
-        ("🌐", "Computer Networks"),
-        ("🗄️", "Database Systems"),
-        ("⚙️", "Operating Systems"),
-        ("🔢", "Linear Algebra"),
-        ("📊", "Statistics"),
-        ("🐍", "Python Programming"),
-        ("☕", "Java Programming"),
-        ("🌍", "Web Development"),
-        ("🔐", "Cyber Security"),
-        ("📱", "Mobile Development"),
-        ("☁️", "Cloud Computing"),
-        ("🧠", "Deep Learning"),
-        ("📡", "Computer Architecture"),
+    QUICK = [
+        ("💻", "Data Structures"),  ("🧮", "Algorithms"),
+        ("🤖", "Machine Learning"), ("🌐", "Computer Networks"),
+        ("🗄️", "Database Systems"), ("⚙️", "Operating Systems"),
+        ("🔢", "Linear Algebra"),   ("📊", "Statistics"),
+        ("🐍", "Python Programming"),("☕", "Java Programming"),
+        ("🌍", "Web Development"),  ("🔐", "Cyber Security"),
+        ("📱", "Mobile Dev"),       ("☁️", "Cloud Computing"),
+        ("🧠", "Deep Learning"),    ("📡", "Computer Architecture"),
     ]
 
-    # Show in 2 columns
-    qcol1, qcol2 = st.columns(2)
-    for idx, (icon, subj) in enumerate(QUICK_SUBJECTS):
-        already_added = subj in st.session_state.subjects_edit_list
-        col = qcol1 if idx % 2 == 0 else qcol2
+    q1, q2 = st.columns(2)
+    for idx, (icon, subj) in enumerate(QUICK):
+        already = subj in st.session_state.subjects_edit_list
+        col     = q1 if idx % 2 == 0 else q2
         with col:
-            if already_added:
+            if already:
                 st.markdown(f"""
-<div style="background:#081810;border:1px solid #065f35;border-radius:8px;
-            padding:7px 10px;margin-bottom:4px;font-size:0.75rem;color:#34d399;">
-  ✓ {icon} {subj}
-</div>
-""", unsafe_allow_html=True)
+                <div style="background:#081810;border:1px solid #065f35;border-radius:8px;
+                            padding:7px 10px;margin-bottom:4px;font-size:0.75rem;color:#34d399;">
+                    ✓ {icon} {subj}
+                </div>
+                """, unsafe_allow_html=True)
             else:
-                if st.button(f"{icon} {subj}", key=f"quick_{subj}",
-                             use_container_width=True):
+                if st.button(f"{icon} {subj}", key=f"quick_{subj}", use_container_width=True):
                     if len(st.session_state.subjects_edit_list) >= 8:
                         st.warning("Maximum 8 subjects.")
                     else:
@@ -330,16 +423,32 @@ with col_right:
 
     st.divider()
 
-    # ── Info box ──────────────────────────────────────────────────────────────
+    # ── How it works ──────────────────────────────────────────────────────────
     st.markdown("""
-<div style="background:#0d1524;border:1px solid #1a2540;border-radius:12px;padding:14px;">
-  <div style="font-size:0.7rem;font-weight:700;color:#3b82f6;margin-bottom:8px;">ℹ️ How it works</div>
-  <div style="font-size:0.75rem;color:#4a6080;line-height:1.7;">
-    1. Add subjects here<br>
-    2. Click <strong style="color:#d4dbe8;">Save Changes</strong><br>
-    3. Go to <strong style="color:#d4dbe8;">Upload Syllabus</strong> to upload a PDF for each subject<br>
-    4. Build the Knowledge Graph for each subject<br>
-    5. Start studying!
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    <div style="background:#0d1524;border:1px solid #1a2540;border-radius:14px;padding:18px 20px;">
+        <div style="font-size:0.7rem;font-weight:700;color:#3b82f6;
+                    text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">
+            ℹ️ Setup Guide
+        </div>
+        <div class="step-row">
+            <div class="step-num">1</div>
+            <div class="step-text">Add your subjects using Quick Add or the text field</div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">2</div>
+            <div class="step-text">Click <strong style="color:#d4dbe8;">Save Changes</strong> to persist them</div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">3</div>
+            <div class="step-text">Upload a syllabus PDF for each subject</div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">4</div>
+            <div class="step-text">Build the Knowledge Graph for smarter answers</div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">5</div>
+            <div class="step-text">Click your subject in the sidebar to start studying!</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
