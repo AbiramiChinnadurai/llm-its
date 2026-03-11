@@ -8,6 +8,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from database.db import get_subject_summary, get_quiz_history, get_error_topics
+from components.sidebar import render_sidebar
+render_sidebar()
 
 st.set_page_config(page_title="Dashboard | LLM-ITS", page_icon="📊", layout="wide")
 

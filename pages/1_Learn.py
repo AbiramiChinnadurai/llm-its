@@ -11,6 +11,8 @@ import json
 import re
 from datetime import datetime, date, timedelta
 from groq import Groq
+from components.sidebar import render_sidebar
+render_sidebar()
 
 from database.db import (get_subject_summary, get_error_topics,
                           get_ael_modality, get_topics,

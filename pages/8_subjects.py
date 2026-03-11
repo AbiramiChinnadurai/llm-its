@@ -9,6 +9,8 @@ No need to re-register.
 
 import streamlit as st
 from database.db import get_profile
+from components.sidebar import render_sidebar
+render_sidebar()
 
 st.set_page_config(page_title="Subjects | LLM-ITS", page_icon="📚", layout="wide")
 

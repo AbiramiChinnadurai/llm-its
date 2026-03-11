@@ -25,37 +25,8 @@ if "current_subject" not in st.session_state: st.session_state.current_subject =
 if "chat_history"    not in st.session_state: st.session_state.chat_history    = []
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/graduation-cap.png", width=60)
-    st.title("LLM-ITS")
-    st.caption("Intelligent Tutoring System")
-    st.divider()
-
-    if st.session_state.uid:
-        p = st.session_state.profile
-        st.success(f"👤 {p['name']}")
-        st.caption(f"📚 {p['education_level']}")
-        if st.button("🚪 Logout", use_container_width=True):
-            for key in ["uid", "profile", "current_subject", "chat_history"]:
-                st.session_state[key] = None if key != "chat_history" else []
-            st.rerun()
-        st.divider()
-        # ✅ New — subjects as clickable nav items
-        st.markdown("**📖 Subjects**")
-        subjects_list = p.get("subjects_list") or p.get("subject_list", "").split(",")
-        for subj in subjects_list:
-            if st.button(f"📚 {subj.strip()}", key=f"nav_{subj}", use_container_width=True):
-                st.session_state["study_subject"]  = subj.strip()
-                st.session_state["selected_topic"] = None
-                st.session_state["chat_history"]   = []
-                st.switch_page("pages/1_Learn.py")
-
-        st.divider()
-        st.page_link("pages/4_Dashboard.py",      label="📊 Dashboard",      icon="📊")
-        st.page_link("pages/5_UploadSyllabus.py", label="📄 Upload Syllabus",icon="📄")
-        st.page_link("pages/6_Notes.py",          label="📝 Notes",          icon="📝")
-        st.page_link("pages/7_XAI_Debug.py",      label="🔍 XAI Debug",      icon="🔍")
-        st.page_link("pages/8_subjects.py",       label="📚 Subjects",       icon="📚")
+from components.sidebar import render_sidebar
+render_sidebar()
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
