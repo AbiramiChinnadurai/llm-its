@@ -9,6 +9,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from database.db import get_subject_summary, get_quiz_history, get_error_topics
 from components.sidebar import render_sidebar
+from utils.theme import inject_theme, get_theme
+
 render_sidebar()
 
 st.set_page_config(page_title="Dashboard | LLM-ITS", page_icon="📊", layout="wide")
@@ -21,37 +23,9 @@ uid      = st.session_state.uid
 profile  = st.session_state.profile
 subjects = profile.get("subjects_list") or profile.get("subject_list", "").split(",")
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
-
-html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
-.stApp { background: #080c14; color: #d4dbe8; }
-
-.hud-header {
-    background: linear-gradient(160deg, #0d1524 0%, #080c14 60%);
-    border: 1px solid #1a2540; border-radius: 20px;
-    padding: 32px 40px; margin-bottom: 32px;
-    position: relative; overflow: hidden;
-}
-.hud-header::after {
-    content: 'ANALYTICS'; position: absolute; right: 32px; top: 50%;
-    transform: translateY(-50%); font-family: 'Syne', sans-serif;
-    font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.025);
-    letter-spacing: 0.15em; pointer-events: none; user-select: none;
-}
-.hud-title { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
-.hud-sub   { color:#4a6080; font-size:0.88rem; margin:0; font-weight:300; }
-
-.hud-cell { background:#0d1524; border:1px solid #1a2540; border-radius:14px; padding:18px 20px; position:relative; overflow:hidden; }
-.hud-cell::before { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:linear-gradient(90deg,#3b82f6,#1d4ed8); }
-.hud-num { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; line-height:1; margin-bottom:4px; color:#f0f6ff; }
-.hud-label { font-size:0.7rem; color:#4a6080; text-transform:uppercase; letter-spacing:0.1em; font-weight:600; }
-
-hr { border-color:#1a2540 !important; }
-</style>
-""", unsafe_allow_html=True)
+# ── Theme CSS ──────────────────────────────────────────────────────────────────
+inject_theme()
+t = get_theme()
 
 st.markdown("""
 <div class="hud-header">
@@ -72,7 +46,7 @@ df["timestamp"] = pd.to_datetime(df["timestamp"])
 df["session_num"] = df.groupby("subject").cumcount() + 1
 
 # ── Row 1: Key Metrics ────────────────────────────────────────────────────────
-st.markdown('<div class="hud-label" style="font-size:1rem; margin-bottom:16px; color:#d4dbe8;">🏆 Overall Performance</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-label" style="font-size:1rem; margin-bottom:16px;">🏆 Overall Performance</div>', unsafe_allow_html=True)
 col1, col2, col3, col4 = st.columns(4)
 
 metrics = [
@@ -117,7 +91,7 @@ with col_a:
         fig.update_layout(
             showlegend=True, height=350,
             plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#d4dbe8', family='Instrument Sans')
+            font=dict(color=t['text_secondary'], family='Instrument Sans')
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -139,7 +113,7 @@ with col_b:
     fig2.update_layout(
         height=350,
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#d4dbe8', family='Instrument Sans')
+        font=dict(color=t['text_secondary'], family='Instrument Sans')
     )
     st.plotly_chart(fig2, use_container_width=True)
 

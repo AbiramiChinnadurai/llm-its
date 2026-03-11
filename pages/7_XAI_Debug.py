@@ -15,6 +15,8 @@ import streamlit as st
 import time
 import json
 from components.sidebar import render_sidebar
+from utils.theme import inject_theme, get_theme
+
 render_sidebar()
 
 st.set_page_config(page_title="XAI Debug | LLM-ITS", page_icon="🔬", layout="wide")
@@ -28,39 +30,19 @@ uid      = st.session_state.uid
 profile  = st.session_state.profile
 subjects = profile.get("subjects_list") or profile.get("subject_list", "").split(",")
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
-html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
-.stApp { background: #080c14; color: #d4dbe8; }
-hr { border-color: #1a2540 !important; }
-[data-baseweb="select"] { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
-[data-baseweb="input"]  { background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important; }
-textarea { background: #0a0e18 !important; border-color: #1a2540 !important; border-radius: 10px !important;
-           font-family: 'JetBrains Mono', monospace !important; font-size: 0.83rem !important; color: #e2e8f0 !important; }
-.stButton > button { border-radius: 10px !important; border: 1px solid #1a2540 !important;
-    background: #0d1524 !important; color: #8090a8 !important; font-family: 'Instrument Sans', sans-serif !important; }
-.stButton > button:hover { background: #1a2540 !important; border-color: #3b82f6 !important; color: #f0f4ff !important; }
-button[kind="primary"] { background: linear-gradient(135deg,#2563eb,#1d4ed8) !important;
-    border-color: #3b82f6 !important; color: #fff !important; font-weight: 600 !important; }
-</style>
-""", unsafe_allow_html=True)
+# ── Theme CSS ──────────────────────────────────────────────────────────────────
+inject_theme()
+t = get_theme()
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("""
-<div style="background:linear-gradient(160deg,#0d1524 0%,#080c14 60%);
-            border:1px solid #1a2540;border-radius:20px;padding:28px 36px;
-            margin-bottom:28px;position:relative;overflow:hidden;">
+<div class="hud-header">
   <div style="position:absolute;right:32px;top:50%;transform:translateY(-50%);
               font-family:'Syne',sans-serif;font-size:5rem;font-weight:800;
-              color:rgba(255,255,255,0.022);letter-spacing:0.15em;
+              color:var(--watermark);letter-spacing:0.15em;
               pointer-events:none;user-select:none;">DEBUG</div>
-  <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;
-              color:#f0f6ff;margin-bottom:4px;">🔬 XAI Debug Dashboard</div>
-  <div style="color:#4a6080;font-size:0.88rem;">
-    Live inspector for Emotion Detection · Knowledge Graph · XAI Explainer
-  </div>
+  <h1 class="hud-title">🔬 XAI Debug Dashboard</h1>
+  <p class="hud-sub">Live inspector for Emotion Detection · Knowledge Graph · XAI Explainer</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -70,16 +52,16 @@ st.markdown("### ⚙️ Component Health Check")
 col1, col2, col3, col4 = st.columns(4)
 
 def health_badge(label, ok, detail=""):
-    color  = "#34d399" if ok else "#ef4444"
-    bg     = "#081810" if ok else "#1c0808"
-    border = "#065f35" if ok else "#7f1d1d"
+    color  = t["success"] if ok else t["error"]
+    bg     = t["success_bg"] if ok else t["error_bg"]
+    border = f"{t['success']}66" if ok else f"{t['error']}66"
     icon   = "✓" if ok else "✗"
     return f"""
 <div style="background:{bg};border:1px solid {border};border-radius:12px;
             padding:14px;text-align:center;">
   <div style="font-size:1.4rem;font-weight:800;color:{color};">{icon}</div>
   <div style="font-size:0.75rem;font-weight:700;color:{color};margin-top:4px;">{label}</div>
-  <div style="font-size:0.65rem;color:#3a5070;margin-top:3px;">{detail}</div>
+  <div style="font-size:0.65rem;color:{t['text_muted']};margin-top:3px;">{detail}</div>
 </div>"""
 
 # Check each component

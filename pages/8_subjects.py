@@ -10,16 +10,11 @@ import os
 import tempfile
 from database.db import get_topics, topics_exist, save_topics, get_connection
 from components.sidebar import render_sidebar
-from utils.theme import inject_theme, render_theme_toggle, get_theme
+from utils.theme import inject_theme, get_theme
 
 st.set_page_config(page_title="Subjects | LLM-ITS", page_icon="📚", layout="wide")
 
 render_sidebar()
-
-# ── Theme toggle in sidebar ───────────────────────────────────────────────────
-with st.sidebar:
-    st.divider()
-    render_theme_toggle()
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 if not st.session_state.get("uid"):
@@ -34,19 +29,13 @@ inject_theme()
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("""
-<div style="background:linear-gradient(160deg,#0d1524 0%,#080c14 60%);
-            border:1px solid #1a2540; border-radius:20px;
-            padding:28px 36px; margin-bottom:28px; position:relative; overflow:hidden;">
+<div class="hud-header">
   <div style="position:absolute;right:32px;top:50%;transform:translateY(-50%);
               font-family:'Syne',sans-serif;font-size:5rem;font-weight:800;
-              color:rgba(255,255,255,0.022);letter-spacing:0.15em;
+              color:var(--watermark);letter-spacing:0.15em;
               pointer-events:none;user-select:none;">SUBJECTS</div>
-  <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#f0f6ff;margin-bottom:4px;">
-    📚 Subject Manager
-  </div>
-  <div style="color:#4a6080;font-size:0.88rem;">
-    Manage your subjects and upload syllabi — everything in one place.
-  </div>
+  <h1 class="hud-title">📚 Subject Manager</h1>
+  <p class="hud-sub">Manage your subjects and upload syllabi — everything in one place.</p>
 </div>
 """, unsafe_allow_html=True)
 

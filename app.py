@@ -7,6 +7,7 @@ import streamlit as st
 from database.db import (init_db, create_profile, get_all_profiles, get_profile,
                           get_subject_summary, get_quiz_history,
                           get_xp, get_streak, get_level_title, get_xp_progress)
+from utils.theme import inject_theme, render_theme_toggle
 
 # ── Init ──────────────────────────────────────────────────────────────────────
 init_db()
@@ -23,41 +24,14 @@ if "uid"             not in st.session_state: st.session_state.uid             =
 if "profile"         not in st.session_state: st.session_state.profile         = None
 if "current_subject" not in st.session_state: st.session_state.current_subject = None
 if "chat_history"    not in st.session_state: st.session_state.chat_history    = []
+if "theme"           not in st.session_state: st.session_state.theme           = "dark"
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 from components.sidebar import render_sidebar
 render_sidebar()
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
-
-html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
-.stApp { background: #080c14; color: #d4dbe8; }
-
-.hud-header {
-    background: linear-gradient(160deg, #0d1524 0%, #080c14 60%);
-    border: 1px solid #1a2540; border-radius: 20px;
-    padding: 32px 40px; margin-bottom: 32px;
-    position: relative; overflow: hidden;
-}
-.hud-header::after {
-    content: 'LLM-ITS'; position: absolute; right: 32px; top: 50%;
-    transform: translateY(-50%); font-family: 'Syne', sans-serif;
-    font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.025);
-    letter-spacing: 0.15em; pointer-events: none; user-select: none;
-}
-.hud-title { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
-.hud-sub   { color:#4a6080; font-size:0.88rem; margin:0; font-weight:300; }
-
-.day-card {
-    background: #0d1524; border: 1px solid #1a2540;
-    border-radius: 14px; padding: 20px;
-    transition: all 0.3s;
-}
-</style>
-""", unsafe_allow_html=True)
+# ── Theme CSS (dark + light) ───────────────────────────────────────────────────
+inject_theme()
 
 st.markdown("""
 <style>

@@ -12,7 +12,7 @@ import re
 from datetime import datetime, date, timedelta
 from groq import Groq
 from components.sidebar import render_sidebar
-from utils.theme import inject_theme, render_theme_toggle, get_theme
+from utils.theme import inject_theme, get_theme
 
 from database.db import (get_subject_summary, get_error_topics,
                           get_ael_modality, get_topics,
@@ -43,10 +43,6 @@ from xai.xai_widget import (
 
 st.set_page_config(page_title="Learn | LLM-ITS", page_icon="🎓", layout="wide")
 render_sidebar()
-
-with st.sidebar:
-    st.divider()
-    render_theme_toggle()
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 if not st.session_state.get("uid"):

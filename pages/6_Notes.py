@@ -8,122 +8,15 @@ import streamlit as st
 import time
 import json
 from database.db import get_topics
+from components.sidebar import render_sidebar
+from utils.theme import inject_theme, get_theme
 
 st.set_page_config(page_title="Notes | LLM-ITS", page_icon="📝", layout="wide")
+render_sidebar()
 
-# ── Professional CSS ──────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Instrument+Sans:wght@300;400;500&display=swap');
-
-html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif; }
-.stApp { background: #080c14; color: #d4dbe8; }
-
-/* ── Header ── */
-.hud-header {
-    background: linear-gradient(160deg, #0d1524 0%, #080c14 60%);
-    border: 1px solid #1a2540; border-radius: 20px;
-    padding: 32px 40px; margin-bottom: 32px;
-    position: relative; overflow: hidden;
-}
-.hud-header::after {
-    content: 'NOTES'; position: absolute; right: 32px; top: 50%;
-    transform: translateY(-50%); font-family: 'Syne', sans-serif;
-    font-size: 5rem; font-weight: 800; color: rgba(255,255,255,0.025);
-    letter-spacing: 0.15em; pointer-events: none; user-select: none;
-}
-.hud-title { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:#f0f6ff; margin:0 0 4px 0; }
-.hud-sub   { color:#4a6080; font-size:0.88rem; margin:0; font-weight:300; }
-
-/* ── Note card ── */
-.note-card {
-    background: #0d1524;
-    border: 1px solid #1a2540;
-    border-radius: 14px;
-    padding: 20px 22px;
-    margin-bottom: 14px;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    position: relative;
-}
-.note-card:hover { border-color: #2563eb; }
-.note-card.highlight { border-left: 3px solid #f59e0b; background: linear-gradient(135deg, #1c1005, #0d1524); }
-.note-card.ai-saved { border-left: 3px solid #3b82f6; background: linear-gradient(135deg, #0d1a2e, #0d1524); }
-.note-card.personal { border-left: 3px solid #8b5cf6; background: linear-gradient(135deg, #1a0d2e, #0d1524); }
-
-/* ── Note meta ── */
-.note-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-.note-subject-tag {
-    background: #0d1524; border: 1px solid #1d4ed8; border-radius: 20px;
-    padding: 3px 12px; font-size: 0.73rem; color: #60a5fa; font-weight: 500;
-}
-.note-topic-tag {
-    background: #0d1524; border: 1px solid #7c3aed; border-radius: 20px;
-    padding: 3px 12px; font-size: 0.73rem; color: #c084fc;
-}
-.note-type-tag { border-radius: 20px; padding: 3px 12px; font-size: 0.73rem; font-weight: 500; }
-.tag-ai    { background: #0d1a2e; border: 1px solid #1d4ed8; color: #60a5fa; }
-.tag-hl    { background: #1c1005; border: 1px solid #92400e; color: #fbbf24; }
-.tag-note  { background: #1a0d2e; border: 1px solid #7c3aed; color: #c084fc; }
-
-.note-time { font-size: 0.7rem; color: #4a6080; margin-left: auto; }
-
-/* ── Note content ── */
-.note-content {
-    font-size: 0.87rem; color: #c0c8dc; line-height: 1.65;
-    border-top: 1px solid #1a2540; padding-top: 12px; margin-top: 6px; white-space: pre-wrap;
-}
-.note-title { font-family: 'Syne', sans-serif; font-size: 1.05rem; color: #f0f4ff; font-weight: 600; margin-bottom: 2px; }
-
-/* ── Highlight text ── */
-.highlight-text {
-    background: linear-gradient(120deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
-    border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0;
-    padding: 10px 14px; font-size: 0.87rem; color: #fde68a; font-style: italic; line-height: 1.6;
-}
-
-/* ── Stats bar ── */
-.stats-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.stat-chip {
-    background: #0d1524; border: 1px solid #1a2540; border-radius: 10px;
-    padding: 10px 18px; text-align: center; flex: 1; min-width: 100px;
-}
-.stat-chip .num { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight:800; color: #f0f4ff; display: block; line-height: 1.2; }
-.stat-chip .lbl { font-size: 0.72rem; color: #4a6080; text-transform: uppercase; letter-spacing: 0.08em; font-weight:600; }
-
-/* ── Empty state ── */
-.empty-state { text-align: center; padding: 60px 20px; color: #4a6080; }
-.empty-state .icon { font-size: 3rem; margin-bottom: 16px; }
-.empty-state h3 { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight:700; color: #d4dbe8; margin-bottom: 8px; }
-.empty-state p { font-size: 0.85rem; }
-
-/* ── Buttons ── */
-.stButton > button {
-    border-radius: 10px !important; font-family: 'Instrument Sans', sans-serif !important;
-    font-size: 0.82rem !important; transition: all 0.18s ease !important;
-    border: 1px solid #1a2540 !important; background: #0d1524 !important; color: #8090a8 !important;
-}
-.stButton > button:hover { background: #1a2540 !important; border-color: #3b82f6 !important; color: #f0f4ff !important; transform: translateY(-2px) !important; }
-button[kind="primary"] { background: linear-gradient(135deg, #2563eb, #1d4ed8) !important; border-color: #3b82f6 !important; color: #fff !important; }
-button[kind="primary"]:hover { background: linear-gradient(135deg, #3b82f6, #2563eb) !important; box-shadow: 0 4px 16px rgba(59,130,246,0.3) !important; }
-
-/* ── Inputs ── */
-[data-baseweb="select"], [data-baseweb="input"], [data-baseweb="textarea"] {
-    background: #0d1524 !important; border-color: #1a2540 !important; border-radius: 10px !important;
-}
-textarea { background: #0d1524 !important; color: #e8e8e8 !important; }
-
-/* ── Tabs ── */
-[data-baseweb="tab-list"] { background: transparent !important; border-bottom: 1px solid #1a2540 !important; }
-[data-baseweb="tab"] { color: #4a6080 !important; font-family: 'Instrument Sans', sans-serif !important; }
-[aria-selected="true"] { color: #60a5fa !important; border-bottom-color: #3b82f6 !important; }
-
-hr { border-color: #1a2540 !important; }
-.sidebar-label {
-    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em;
-    text-transform: uppercase; color: #4a6080; margin: 16px 0 6px 0;
-}
-</style>
-""", unsafe_allow_html=True)
+# ── Theme CSS ──────────────────────────────────────────────────────────────────
+inject_theme()
+t = get_theme()
 
 if not st.session_state.get("uid"):
     st.warning("Please login from the Home page first.")
@@ -331,9 +224,9 @@ with col_main:
 
             for subj, items in by_subject.items():
                 st.markdown(f"""
-                <div style="font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; color:#f0f4ff;
-                            margin: 16px 0 10px 0; padding-bottom: 6px; border-bottom: 1px solid #1a2540;">
-                    📚 {subj} <span style="font-size:0.75rem; color:#4a6080; font-family:'Instrument Sans',sans-serif; font-weight:400;">
+                <div style="font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; color:{t['text_primary']};
+                            margin: 16px 0 10px 0; padding-bottom: 6px; border-bottom: 1px solid {t['border']};">
+                    📚 {subj} <span style="font-size:0.75rem; color:{t['text_muted']}; font-family:'Instrument Sans',sans-serif; font-weight:400;">
                     — {len(items)} highlight{'s' if len(items) != 1 else ''}</span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -342,8 +235,8 @@ with col_main:
 
     # ── Tab 3: Export ─────────────────────────────────────────────────
     with tab3:
-        st.markdown("""
-        <div style="font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:700; color:#f0f4ff; margin-bottom:16px;">
+        st.markdown(f"""
+        <div style="font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:700; color:{t['text_primary']}; margin-bottom:16px;">
             Export Your Notes
         </div>
         """, unsafe_allow_html=True)

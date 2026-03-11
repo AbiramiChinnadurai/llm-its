@@ -70,13 +70,13 @@ LIGHT = {
     "name":          "light",
     "emoji":         "☀️",
     "label":         "Light",
-    # Backgrounds
-    "app_bg":        "#fafaf8",
+    # Backgrounds — crisp white + soft orange warmth
+    "app_bg":        "#fffbf7",
     "card_bg":       "#ffffff",
-    "card_bg2":      "#f5f4f0",
-    "sidebar_bg":    "#fff8f3",
+    "card_bg2":      "#fff8f3",
+    "sidebar_bg":    "#fff5eb",
     "input_bg":      "#ffffff",
-    "hover_bg":      "#fff0e6",
+    "hover_bg":      "#ffedd5",
     # Borders
     "border":        "#e8e0d8",
     "border2":       "#ede6dd",
@@ -108,7 +108,7 @@ LIGHT = {
     "tab_hover_bg":  "#fff0e6",
     "tab_hover_text":"#1a0f00",
     "tab_text":      "#8a7060",
-    "tab_list_bg":   "#f5f0eb",
+    "tab_list_bg":   "#fff8f3",
     # Primary button
     "btn_primary":   "linear-gradient(135deg,#ea580c,#c2410c)",
     "btn_primary_h": "linear-gradient(135deg,#f97316,#ea580c)",
@@ -117,8 +117,8 @@ LIGHT = {
     "btn_color":     "#6b5040",
     "btn_border":    "#e8e0d8",
     # Sidebar header text
-    "header_bg":     "linear-gradient(160deg, #fff8f3 0%, #fafaf8 60%)",
-    "header_border": "#e8d8cc",
+    "header_bg":     "linear-gradient(160deg, #fff5eb 0%, #fffbf7 60%)",
+    "header_border": "#ffedd5",
 }
 
 
@@ -161,6 +161,7 @@ def build_css(t: dict) -> str:
     --warning-bg:{t['warning_bg']};
     --error:     {t['error']};
     --error-bg:  {t['error_bg']};
+    --watermark: {t['watermark']};
 }}
 /* Force Streamlit containers to respect theme */
 .main .block-container {{ background: {t['app_bg']} !important; }}
@@ -398,6 +399,36 @@ hr {{ border-color: {t['border']} !important; }}
     font-family:'Syne',sans-serif; font-size:0.75rem; font-weight:700;
     color:#fff; max-width:200px; box-shadow:{t['btn_primary_sh']};
 }}
+
+/* ── Notes page ── */
+.note-card {{
+    background:{t['card_bg']}; border:1px solid {t['border']};
+    border-radius:14px; padding:20px 22px; margin-bottom:14px;
+    transition:border-color 0.2s, box-shadow 0.2s; position:relative;
+}}
+.note-card:hover {{ border-color:{t['accent_light']}; }}
+.note-card.highlight {{ border-left:3px solid {t['orange']}; background:linear-gradient(135deg,{t['warning_bg']},{t['card_bg']}); }}
+.note-card.ai-saved {{ border-left:3px solid {t['accent']}; background:linear-gradient(135deg,{t['accent']}18,{t['card_bg']}); }}
+.note-card.personal {{ border-left:3px solid #8b5cf6; background:linear-gradient(135deg,#8b5cf618,{t['card_bg']}); }}
+.note-meta {{ display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }}
+.note-subject-tag {{ background:{t['card_bg2']}; border:1px solid {t['accent']}; border-radius:20px; padding:3px 12px; font-size:0.73rem; color:{t['accent_light']}; font-weight:500; }}
+.note-topic-tag {{ background:{t['card_bg2']}; border:1px solid #8b5cf6; border-radius:20px; padding:3px 12px; font-size:0.73rem; color:#a78bfa; }}
+.note-type-tag {{ border-radius:20px; padding:3px 12px; font-size:0.73rem; font-weight:500; }}
+.tag-ai {{ background:{t['accent']}18; border:1px solid {t['accent']}; color:{t['accent_light']}; }}
+.tag-hl {{ background:{t['warning_bg']}; border:1px solid {t['orange']}; color:{t['orange']}; }}
+.tag-note {{ background:#8b5cf618; border:1px solid #8b5cf6; color:#a78bfa; }}
+.note-time {{ font-size:0.7rem; color:{t['text_muted']}; margin-left:auto; }}
+.note-content {{ font-size:0.87rem; color:{t['text_secondary']}; line-height:1.65; border-top:1px solid {t['border']}; padding-top:12px; margin-top:6px; white-space:pre-wrap; }}
+.note-title {{ font-family:'Syne',sans-serif; font-size:1.05rem; color:{t['text_primary']}; font-weight:600; margin-bottom:2px; }}
+.highlight-text {{ background:linear-gradient(120deg,{t['orange']}26,{t['orange']}0d); border-left:3px solid {t['orange']}; border-radius:0 8px 8px 0; padding:10px 14px; font-size:0.87rem; color:{t['orange2']}; font-style:italic; line-height:1.6; }}
+.stats-bar {{ display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }}
+.stat-chip {{ background:{t['card_bg']}; border:1px solid {t['border']}; border-radius:10px; padding:10px 18px; text-align:center; flex:1; min-width:100px; }}
+.stat-chip .num {{ font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; color:{t['text_primary']}; display:block; line-height:1.2; }}
+.stat-chip .lbl {{ font-size:0.72rem; color:{t['text_muted']}; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; }}
+.empty-state {{ text-align:center; padding:60px 20px; color:{t['text_muted']}; }}
+.empty-state .icon {{ font-size:3rem; margin-bottom:16px; }}
+.empty-state h3 {{ font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:700; color:{t['text_secondary']}; margin-bottom:8px; }}
+.empty-state p {{ font-size:0.85rem; }}
 </style>"""
 
 
