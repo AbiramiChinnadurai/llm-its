@@ -681,6 +681,7 @@ def save_socratic_session(uid, subject, topic, messages):
     conn.commit()
     conn.close()
 
+
 def get_socratic_sessions(uid, subject=None, topic=None):
     conn = get_connection()
     c = conn.cursor()
@@ -731,4 +732,15 @@ def log_study_interaction(uid, subject, topic, question, answer, modality, laten
 
     conn.commit()
     cur.close()
+    conn.close()
+
+def update_subject_list(uid, subjects):
+    """Update the learner's subject list."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE learner_profile SET subject_list = %s WHERE uid = %s",
+        (", ".join(subjects), uid)
+    )
+    conn.commit()
     conn.close()
