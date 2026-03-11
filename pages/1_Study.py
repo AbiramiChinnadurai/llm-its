@@ -674,6 +674,19 @@ with col_main:
             "role": "assistant", "content": response,
             "modality": m_idx, "latency": elapsed, "chunks": len(chunks)
         })
+        try:
+            log_study_interaction(
+                uid,
+                subject,
+                selected_topic,
+                q,
+                response,
+                m_idx,
+                elapsed,
+                len(chunks)
+            )
+        except Exception as e:
+            print("Logging failed:", e)
 
     # ── 🤔 Socratic Tutor (at the bottom) ────────────────────────────────────
     render_socratic_tutor(uid, subject, selected_topic)
