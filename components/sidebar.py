@@ -45,15 +45,12 @@ def render_sidebar():
         # ── My Subjects ───────────────────────────────────────────────────
         st.markdown('<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#4a6080;margin-bottom:8px;">My Subjects</div>', unsafe_allow_html=True)
 
+        # Replace the button loop with this:
         for subj in subjects_list:
             subj = subj.strip()
             is_active = st.session_state.get("study_subject") == subj
-            if st.button(
-                f"{'▶  ' if is_active else '      '}{subj}",
-                key=f"sidebar_subj_{subj}",
-                use_container_width=True,
-                type="primary" if is_active else "secondary"
-            ):
+            label = f"▶  {subj}" if is_active else subj
+            if st.button(label, key=f"sidebar_subj_{subj}", use_container_width=True):
                 st.session_state["study_subject"]  = subj
                 st.session_state["selected_topic"] = None
                 st.session_state["chat_history"]   = []
@@ -70,3 +67,18 @@ def render_sidebar():
         st.page_link("pages/6_Notes.py",          label="📝  Notes")
         st.page_link("pages/7_XAI_Debug.py",      label="🔍  XAI Debug")
         st.page_link("pages/8_subjects.py",       label="⚙️  Manage Subjects")
+
+        st.markdown("""
+        <style>
+        [data-testid="stSidebarNav"] { display: none !important; }
+
+        /* Prevent browser autocomplete popups on buttons */
+        button { 
+            autocomplete: off !important; 
+        }
+        section[data-testid="stSidebar"] button {
+            -webkit-user-select: none !important;
+            user-select: none !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
