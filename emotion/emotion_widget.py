@@ -298,6 +298,7 @@ def render_reroute_banner(result: EmotionResult):
     lines = result.xai_reason.strip().split('\n')
     body_text = '\n'.join(lines[2:]) if len(lines) > 2 else result.xai_reason
     body_text = _re.sub(r'\*\*(.*?)\*\*', r'<strong style="color:#e2e8f0;">\1</strong>', body_text)
+    body_text = _re.sub(r'<!--.*?-->', '', body_text)
     body_text = body_text.replace('\n\n', '<br><br>').replace('\n', '<br>')
 
     st.markdown(f"""
