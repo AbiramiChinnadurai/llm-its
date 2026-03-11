@@ -60,8 +60,7 @@ def render_sidebar():
 
         # ── Navigation ────────────────────────────────────────────────────
         st.markdown('<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#4a6080;margin-bottom:8px;">Navigation</div>', unsafe_allow_html=True)
-
-        st.page_link("pages/1_Learn.py",          label="📖  Learn")
+        st.markdown("**🗂️ Navigation**")
         st.page_link("pages/4_Dashboard.py",      label="📊  Dashboard")
         st.page_link("pages/6_Notes.py",          label="📝  Notes")
         st.page_link("pages/7_XAI_Debug.py",      label="🔍  XAI Debug")
