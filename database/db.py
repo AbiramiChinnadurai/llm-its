@@ -715,3 +715,20 @@ def get_socratic_sessions(uid, subject=None, topic=None):
             return []
             
     return [dict(r) for r in rows]
+
+def log_study_interaction(uid, subject, topic, question, answer, modality, latency, chunks):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        INSERT INTO study_logs
+        (user_id, subject, topic, question, answer, modality, latency, chunks_used)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """,
+        (uid, subject, topic, question, answer, modality, latency, chunks)
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()

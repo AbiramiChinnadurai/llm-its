@@ -13,6 +13,7 @@ from database.db import (get_subject_summary, get_error_topics,
                           log_hint_usage, save_socratic_session, get_socratic_sessions)
 from rag.rag_pipeline import retrieve_chunks, format_context, index_exists
 from llm.llm_engine import generate_explanation, MODALITY_LABELS, MODEL_NAME
+from database.db import log_study_interaction
 
 # ── Emotion-Aware Re-Routing ──────────────────────────────────────────────────
 from emotion.emotion_engine import get_emotion_prompt_modifier
@@ -540,6 +541,16 @@ with col_main:
                 "content": f"**Why not '{_rejected}'?** {_cf.reason}",
                 "modality": 0, "latency": 0, "chunks": 0
             })
+            log_study_interaction(
+                uid,
+                subject,
+                selected_topic,
+                q,
+                response,
+                m_idx,
+                elapsed,
+                len(chunks)
+            )
             st.stop()
 
         with st.chat_message("assistant"):
