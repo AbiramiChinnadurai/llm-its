@@ -292,13 +292,15 @@ def render_reroute_banner(result: EmotionResult):
 
     cfg = EMOTION_CONFIG.get(result.state, EMOTION_CONFIG[NEUTRAL])
     import re as _re
-    reason = _re.sub(r'\*\*(.*?)\*\*', r'<strong style="color:#e2e8f0;">\1</strong>', result.xai_reason)
-    reason = reason.replace('\n\n', '<br><br>').replace('\n', '<br>')
-    # Strip the first line (it's the header) to avoid duplication
-    lines = result.xai_reason.strip().split('\n')
-    body_text = '\n'.join(lines[2:]) if len(lines) > 2 else result.xai_reason
-    body_text = _re.sub(r'\*\*(.*?)\*\*', r'<strong style="color:#e2e8f0;">\1</strong>', body_text)
+
+    # Remove ALL HTML tags and comments coming from XAI text
+    body_text = _re.sub(r'<[^>]+>', '', result.xai_reason)
     body_text = _re.sub(r'<!--.*?-->', '', body_text)
+
+    # Remove markdown bold
+    body_text = _re.sub(r'\*\*(.*?)\*\*', r'\1', body_text)
+
+    # Convert line breaks to HTML
     body_text = body_text.replace('\n\n', '<br><br>').replace('\n', '<br>')
 
     st.markdown(f"""
@@ -310,24 +312,23 @@ def render_reroute_banner(result: EmotionResult):
   <div style="position:absolute;left:0;top:0;bottom:0;width:4px;
               background:{cfg['gradient']};border-radius:14px 0 0 14px;"></div>
 
-  <!-- Top shimmer line -->
-  <div style="position:absolute;top:0;left:4px;right:0;height:1px;
-              background:linear-gradient(90deg,{cfg['color']}88,transparent);"></div>
-
   <div style="padding-left:8px;">
     <!-- Icon + title -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
       <div style="width:32px;height:32px;border-radius:10px;
-                  background:{cfg['gradient']};display:flex;align-items:center;
-                  justify-content:center;font-size:1.1rem;flex-shrink:0;
+                  background:{cfg['gradient']};display:flex;
+                  align-items:center;justify-content:center;
+                  font-size:1.1rem;flex-shrink:0;
                   box-shadow:0 4px 12px {cfg['color']}44;">
         {cfg['emoji']}
       </div>
+
       <div>
         <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
                     letter-spacing:0.15em;color:{cfg['color']};margin-bottom:2px;">
           ↻ Path Adjusted
         </div>
+
         <div style="font-size:0.95rem;font-weight:700;color:#f0f6ff;">
           {cfg['label']} detected
         </div>
@@ -345,11 +346,13 @@ def render_reroute_banner(result: EmotionResult):
                 border-radius:20px;padding:5px 14px;">
       <div style="width:6px;height:6px;border-radius:50%;
                   background:{cfg['color']};box-shadow:0 0 6px {cfg['color']};"></div>
+
       <span style="font-size:0.72rem;font-weight:600;color:{cfg['color']};
                    letter-spacing:0.05em;text-transform:uppercase;">
         {cfg['action_label']}
       </span>
     </div>
+
   </div>
 </div>
 """, unsafe_allow_html=True)
