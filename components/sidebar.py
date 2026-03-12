@@ -1,8 +1,10 @@
 # components/sidebar.py
 import streamlit as st
-from utils.theme import render_theme_toggle, get_theme
 
 def render_sidebar():
+    # Import inside function to prevent circular imports
+    from utils.theme import render_theme_toggle, get_theme
+
     with st.sidebar:
         st.markdown("""
         <style>
@@ -16,7 +18,7 @@ def render_sidebar():
 
         t = get_theme()
         title_color = t["text_primary"]
-        sub_color = t["text_muted"]
+        sub_color   = t["text_muted"]
 
         # ── Brand ─────────────────────────────────────────────────────────────
         st.markdown(f"""
@@ -29,9 +31,10 @@ def render_sidebar():
         </div>
         """, unsafe_allow_html=True)
 
-        # ── Theme toggle (always visible) ──────────────────────────────────────
+        # ── Theme toggle ───────────────────────────────────────────────────────
         render_theme_toggle()
 
+        # ── Not logged in ──────────────────────────────────────────────────────
         if not st.session_state.get("uid"):
             st.divider()
             st.markdown(
@@ -43,15 +46,19 @@ def render_sidebar():
             return
 
         p = st.session_state.profile
+        if not p:
+            st.session_state.uid = None
+            st.rerun()
+            return
 
-        # ── Parse subjects correctly ──────────────────────────────────────────
+        # ── Parse subjects ─────────────────────────────────────────────────────
         raw = p.get("subjects_list") or p.get("subject_list", "")
         if isinstance(raw, list):
             subjects_list = [s.strip() for s in raw if s.strip()]
         else:
             subjects_list = [s.strip() for s in str(raw).split(",") if s.strip()]
 
-        # ── User pill ─────────────────────────────────────────────────────────
+        # ── User pill ──────────────────────────────────────────────────────────
         st.markdown(f"""
         <div style="background:{t['card_bg']};border:1px solid {t['border']};border-radius:10px;
                     padding:10px 14px;margin-bottom:12px;">
@@ -68,7 +75,20 @@ def render_sidebar():
 
         st.divider()
 
-        # ── My Subjects ───────────────────────────────────────────────────────
+        # ── Manage Subjects button — above navigation, prominent ──────────────
+        st.markdown(
+            f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;'
+            f'text-transform:uppercase;color:{t["text_faint"]};margin-bottom:8px;">Subjects</div>',
+            unsafe_allow_html=True
+        )
+        if st.button("⚙️  Manage Subjects", use_container_width=True,
+                     key="sidebar_manage_subjects",
+                     type="primary"):
+            st.switch_page("pages/8_subjects.py")
+
+        st.divider()
+
+        # ── My Subjects ────────────────────────────────────────────────────────
         st.markdown(
             f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;'
             f'text-transform:uppercase;color:{t["text_faint"]};margin-bottom:8px;">My Subjects</div>',
@@ -85,11 +105,11 @@ def render_sidebar():
                     st.session_state["chat_history"]   = []
                     st.switch_page("pages/1_Learn.py")
         else:
-            st.caption("No subjects yet — add them in Manage Subjects.")
+            st.caption("No subjects yet — click Manage Subjects above to add some.")
 
         st.divider()
 
-        # ── Navigation ────────────────────────────────────────────────────────
+        # ── Navigation ─────────────────────────────────────────────────────────
         st.markdown(
             f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;'
             f'text-transform:uppercase;color:{t["text_faint"]};margin-bottom:8px;">Navigation</div>',
@@ -98,4 +118,3 @@ def render_sidebar():
         st.page_link("pages/4_Dashboard.py", label="📊  Dashboard")
         st.page_link("pages/6_Notes.py",     label="📝  Notes")
         st.page_link("pages/7_XAI_Debug.py", label="🔍  XAI Debug")
-        st.page_link("pages/8_subjects.py",  label="⚙️  Manage Subjects")

@@ -475,6 +475,51 @@ hr {{ border-color: {t['border']} !important; }}
 .empty-state .icon {{ font-size:3rem; margin-bottom:16px; }}
 .empty-state h3 {{ font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:700; color:{t['text_secondary']}; margin-bottom:8px; }}
 .empty-state p {{ font-size:0.85rem; }}
+
+/* ── Hide Streamlit default header/toolbar black bar ── */
+header[data-testid="stHeader"] {{
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+}}
+#MainMenu {{ display: none !important; }}
+[data-testid="stToolbar"] {{ display: none !important; }}
+[data-testid="stDecoration"] {{ display: none !important; }}
+.stApp > header {{ display: none !important; }}
+/* Pull page content up to fill the gap */
+.stApp {{ margin-top: 0 !important; padding-top: 0 !important; }}
+.block-container {{ padding-top: 1.5rem !important; }}
+
+/* ── No dimming on rerun — keep full opacity ── */
+[data-stale="true"] {{ opacity: 1 !important; transition: none !important; }}
+.stApp > div[style*="opacity"] {{ opacity: 1 !important; }}
+div[data-testid="stAppViewContainer"] {{ opacity: 1 !important; }}
+[class*="fade"] {{ opacity: 1 !important; transition: none !important; }}
+@keyframes pulse {{ from {{ opacity: 1; }} to {{ opacity: 1; }} }}
+
+/* ── Hide default Streamlit status widget ── */
+[data-testid="stStatusWidget"] {{ display: none !important; }}
+[data-testid="stDecoration"] {{ display: none !important; }}
+
+/* ── Custom slim loading bar at top ── */
+@keyframes its-loading {{
+    0%   {{ left: -40%; width: 40%; }}
+    50%  {{ left: 30%;  width: 50%; }}
+    100% {{ left: 110%; width: 40%; }}
+}}
+[data-testid="stApp"][data-is-loading="true"]::before,
+.stApp:has([data-stale="true"])::before {{
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, {t['accent']}, {t['accent_light']}, transparent);
+    animation: its-loading 1.2s ease-in-out infinite;
+    z-index: 9999;
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 12px {t['accent']}88;
+}}
 </style>"""
 
 

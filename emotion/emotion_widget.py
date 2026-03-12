@@ -5,6 +5,7 @@ All styles fully inlined (no CSS classes) for Streamlit sidebar compatibility.
 """
 
 import streamlit as st
+from utils.theme import get_theme
 from emotion.emotion_engine import (
     EmotionSessionTracker, EmotionResult,
     FRUSTRATION, BOREDOM, ANXIETY, CONFUSION, CONFIDENCE, NEUTRAL,
@@ -116,48 +117,36 @@ def render_emotion_sidebar(tracker: EmotionSessionTracker):
     """
 
     # ── IDLE STATE (no interactions yet) ─────────────────────────────────────
+    _t = get_theme()   # always resolve theme first
     if not tracker.emotion_log:
         idle_bars = ""
         for label, _, color in EMOTION_ORDER:
             idle_bars += f"""
 <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-  <span style="width:68px;font-size:0.69rem;color:#2a3a50;text-align:right;flex-shrink:0;letter-spacing:0.02em;">{label}</span>
-  <div style="flex:1;height:6px;background:#0d1a28;border-radius:4px;border:1px solid #1a2540;"></div>
-  <span style="width:26px;font-size:0.67rem;color:#1e2d3d;text-align:right;flex-shrink:0;">—</span>
+  <span style="width:68px;font-size:0.69rem;color:{_t['text_muted']};text-align:right;flex-shrink:0;letter-spacing:0.02em;">{label}</span>
+  <div style="flex:1;height:6px;background:{_t['card_bg2']};border-radius:4px;border:1px solid {_t['border']};"></div>
+  <span style="width:26px;font-size:0.67rem;color:{_t['text_faint']};text-align:right;flex-shrink:0;">—</span>
 </div>"""
 
         st.markdown(f"""
-<div style="background:linear-gradient(160deg,#0d1524 0%,#080c14 100%);
-            border:1px solid #1a2540;border-radius:16px;
+<div style="background:{_t['card_bg']};
+            border:1px solid {_t['border']};border-radius:16px;
             padding:16px 14px;margin-bottom:6px;position:relative;overflow:hidden;">
-
-  <!-- Watermark -->
-  <div style="position:absolute;right:-8px;top:50%;transform:translateY(-50%) rotate(-90deg);
-              font-size:3.5rem;font-weight:900;color:rgba(255,255,255,0.018);
-              letter-spacing:0.2em;pointer-events:none;user-select:none;white-space:nowrap;">
-    AFFECT
-  </div>
-
-  <!-- Header -->
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-    <div style="width:6px;height:6px;border-radius:50%;background:#3b82f6;
-                box-shadow:0 0 8px #3b82f688;flex-shrink:0;"></div>
+    <div style="width:6px;height:6px;border-radius:50%;background:{_t['accent']};
+                box-shadow:0 0 8px {_t['accent']}88;flex-shrink:0;"></div>
     <span style="font-size:0.67rem;font-weight:800;text-transform:uppercase;
-                 letter-spacing:0.15em;color:#3b82f6;">Emotion Monitor</span>
+                 letter-spacing:0.15em;color:{_t['accent_light']};">Emotion Monitor</span>
   </div>
-
-  <!-- Idle gauge placeholder -->
   <div style="display:flex;justify-content:center;margin-bottom:14px;">
     <div style="width:64px;height:64px;border-radius:50%;
-                border:5px solid #0d1a28;background:#080c14;
+                border:5px solid {_t['card_bg2']};background:{_t['app_bg']};
                 display:flex;align-items:center;justify-content:center;
                 font-size:1.6rem;">🧠</div>
   </div>
-
   {idle_bars}
-
   <div style="margin-top:10px;text-align:center;font-size:0.69rem;
-              color:#1e3050;letter-spacing:0.05em;">
+              color:{_t['text_faint']};letter-spacing:0.05em;">
     ● awaiting first message
   </div>
 </div>
@@ -184,7 +173,7 @@ def render_emotion_sidebar(tracker: EmotionSessionTracker):
         if is_dom and pct > 0:
             bar_inner = f"""
 <div style="position:relative;flex:1;height:{'11px' if is_dom else '7px'};
-            background:#0d1a28;border-radius:4px;overflow:hidden;
+            background:var(--card-bg2,#0d1a28);border-radius:4px;overflow:hidden;
             border:1px solid {color}44;">
   <div style="position:absolute;inset:0;width:{pct}%;
               background:{cfg['gradient'] if is_dom else color};
@@ -199,12 +188,12 @@ def render_emotion_sidebar(tracker: EmotionSessionTracker):
             row_margin = "margin-bottom:8px;"
         else:
             bar_inner = f"""
-<div style="flex:1;height:7px;background:#0d1a28;border-radius:4px;
-            overflow:hidden;border:1px solid #1a2540;">
+<div style="flex:1;height:7px;background:var(--card-bg2,#0d1a28);border-radius:4px;
+            overflow:hidden;border:1px solid var(--border,#1a2540);">
   <div style="width:{pct}%;height:100%;background:{color};
               border-radius:4px;opacity:{'0.9' if pct > 0 else '0.3'};"></div>
 </div>"""
-            label_color = "#3a5070"
+            label_color = _t['text_muted'] if '_t' in dir() else '#3a5070'
             label_weight = "400"
             row_margin = "margin-bottom:6px;"
 
@@ -225,7 +214,7 @@ def render_emotion_sidebar(tracker: EmotionSessionTracker):
         route_dots += f'<div style="width:8px;height:8px;border-radius:50%;background:{color};{glow}"></div>'
 
     st.markdown(f"""
-<div style="background:linear-gradient(160deg,#0d1524 0%,#080c14 100%);
+<div style="background:{_t['card_bg']};
             border:1px solid {cfg['border']};border-radius:16px;
             padding:16px 14px;margin-bottom:6px;position:relative;overflow:hidden;">
 
@@ -248,7 +237,7 @@ def render_emotion_sidebar(tracker: EmotionSessionTracker):
       <span style="font-size:0.67rem;font-weight:800;text-transform:uppercase;
                    letter-spacing:0.15em;color:{cfg['color']};">Emotion Monitor</span>
     </div>
-    <span style="font-size:0.67rem;color:#2a3a50;font-weight:500;">
+    <span style="font-size:0.67rem;color:{_t['text_muted']};font-weight:500;">
       #{tracker.interaction_count}
     </span>
   </div>
@@ -261,7 +250,7 @@ def render_emotion_sidebar(tracker: EmotionSessionTracker):
                   letter-spacing:-0.02em;line-height:1.1;margin-bottom:4px;">
         {cfg['emoji']} {cfg['label']}
       </div>
-      <div style="font-size:0.71rem;color:#4a6080;line-height:1.4;font-style:italic;">
+      <div style="font-size:0.71rem;color:{_t['text_muted']};line-height:1.4;font-style:italic;">
         "{cfg['tip']}"
       </div>
     </div>
@@ -271,13 +260,13 @@ def render_emotion_sidebar(tracker: EmotionSessionTracker):
   {bars_html}
 
   <!-- Footer: re-route dots + count -->
-  <div style="margin-top:10px;padding-top:8px;border-top:1px solid #0d1a28;
+  <div style="margin-top:10px;padding-top:8px;border-top:1px solid {_t['border']};
               display:flex;justify-content:space-between;align-items:center;">
     <div style="display:flex;align-items:center;gap:5px;">
-      <span style="font-size:0.64rem;color:#2a3a50;margin-right:2px;">RE-ROUTES</span>
+      <span style="font-size:0.64rem;color:{_t['text_faint']};margin-right:2px;">RE-ROUTES</span>
       {route_dots}
     </div>
-    <span style="font-size:0.64rem;color:#2a3a50;">{reroutes_left} remaining</span>
+    <span style="font-size:0.64rem;color:{_t['text_faint']}">{reroutes_left} remaining</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -370,7 +359,7 @@ def render_session_emotion_summary(tracker: EmotionSessionTracker):
       <span style="font-size:0.75rem;color:{cfg['color']};font-weight:600;">{cfg['label']}</span>
       <span style="font-size:0.7rem;color:#4a6080;">{count}×</span>
     </div>
-    <div style="height:5px;background:#0d1a28;border-radius:3px;overflow:hidden;border:1px solid #1a2540;">
+    <div style="height:5px;background:{_t['card_bg2']};border-radius:3px;overflow:hidden;border:1px solid {_t['border']};">
       <div style="width:{fill}%;height:100%;background:{cfg['gradient']};border-radius:3px;"></div>
     </div>
   </div>
@@ -378,9 +367,10 @@ def render_session_emotion_summary(tracker: EmotionSessionTracker):
 
     dom_cfg = EMOTION_CONFIG.get(summary["dominant_overall"], EMOTION_CONFIG[NEUTRAL])
 
+    _t = get_theme()
     st.markdown(f"""
-<div style="background:linear-gradient(160deg,#0d1524,#080c14);
-            border:1px solid #1a2540;border-radius:14px;
+<div style="background:{_t['card_bg']};
+            border:1px solid {_t['border']};border-radius:14px;
             padding:16px;margin-top:12px;position:relative;overflow:hidden;">
 
   <div style="position:absolute;top:0;left:0;right:0;height:2px;
@@ -393,7 +383,7 @@ def render_session_emotion_summary(tracker: EmotionSessionTracker):
 
   {rows}
 
-  <div style="margin-top:12px;padding-top:10px;border-top:1px solid #0d1a28;
+  <div style="margin-top:12px;padding-top:10px;border-top:1px solid {_t['border']};
               display:flex;justify-content:space-between;align-items:center;">
     <div style="display:flex;align-items:center;gap:6px;">
       <span style="font-size:1rem;">{dom_cfg['emoji']}</span>
@@ -401,7 +391,7 @@ def render_session_emotion_summary(tracker: EmotionSessionTracker):
         {dom_cfg['label']} session
       </span>
     </div>
-    <span style="font-size:0.7rem;color:#2a3a50;">
+    <span style="font-size:0.7rem;color:{_t['text_faint']};">
       {summary['reroutes']} re-route{"s" if summary["reroutes"] != 1 else ""} triggered
     </span>
   </div>

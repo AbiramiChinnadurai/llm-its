@@ -16,37 +16,42 @@ import psycopg2
 import psycopg2.extras
 import streamlit as st
 from datetime import datetime
+import bcrypt
 
 # ── CONNECTION ────────────────────────────────────────────────────────────────
 
-def get_connection():
-    """
-    Reads DATABASE_URL from Streamlit secrets (preferred) or env var.
-    Uses RealDictCursor so rows behave like dicts (same as sqlite3.Row).
-    """
+def _get_db_url():
     try:
-        db_url = st.secrets["supabase"]["DATABASE_URL"]
+        return st.secrets["supabase"]["DATABASE_URL"]
     except Exception:
-        db_url = os.environ.get("DATABASE_URL")
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+            raise RuntimeError("DATABASE_URL not found in .streamlit/secrets.toml")
+        return url
 
-    if not db_url:
-        raise RuntimeError(
-            "DATABASE_URL not found. Add it to .streamlit/secrets.toml under [supabase]."
-        )
 
+def get_connection():
+    """Open a fresh connection. Uses RealDictCursor so rows behave like dicts."""
     conn = psycopg2.connect(
-    db_url,
-    cursor_factory=psycopg2.extras.RealDictCursor,
-    sslmode="require"
+        _get_db_url(),
+        cursor_factory=psycopg2.extras.RealDictCursor,
+        sslmode="require",
+        connect_timeout=10
     )
     return conn
 
 
 # ── INIT DB ───────────────────────────────────────────────────────────────────
 
+_DB_INITIALIZED = False
+
 def init_db():
-    """Create all tables on first run. Safe to call multiple times (IF NOT EXISTS)."""
+    """Create all tables on first run. Uses module-level flag to run only once."""
+    global _DB_INITIALIZED
+    if _DB_INITIALIZED:
+        return
     conn = get_connection()
+    conn.autocommit = True   # DDL needs autocommit on transaction pooler
     c = conn.cursor()
 
     # ── Table 1: learner_profile ──────────────────────────────────────
@@ -60,8 +65,22 @@ def init_db():
         daily_hours     REAL DEFAULT 2.0,
         deadline        TEXT,
         learning_goals  TEXT,
+        email           TEXT,
+        password_hash   TEXT,
         created_at      TIMESTAMP DEFAULT NOW()
     )""")
+
+    # ── Migrate: add email/password columns if missing ────────────────
+    # Check existing columns first to avoid ALTER TABLE on pooler connections
+    c.execute("""
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name='learner_profile'
+    """)
+    existing_cols = {r["column_name"] for r in c.fetchall()}
+    if "email" not in existing_cols:
+        c.execute("ALTER TABLE learner_profile ADD COLUMN email TEXT")
+    if "password_hash" not in existing_cols:
+        c.execute("ALTER TABLE learner_profile ADD COLUMN password_hash TEXT")
 
     # ── Table 2: quiz_attempts ────────────────────────────────────────
     c.execute("""
@@ -200,18 +219,46 @@ def init_db():
 
 # ── LEARNER PROFILE ───────────────────────────────────────────────────────────
 
-def create_profile(name, age, education_level, subject_list, daily_hours, deadline, learning_goals):
+def hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return False
+
+def create_profile(name, age, education_level, subject_list, daily_hours, deadline, learning_goals,
+                   email: str = "", password: str = ""):
     conn = get_connection()
     c = conn.cursor()
+    pw_hash = hash_password(password) if password else None
     c.execute("""
-        INSERT INTO learner_profile (name, age, education_level, subject_list, daily_hours, deadline, learning_goals)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO learner_profile
+            (name, age, education_level, subject_list, daily_hours, deadline, learning_goals, email, password_hash)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING uid
-    """, (name, age, education_level, ",".join(subject_list), daily_hours, deadline, learning_goals))
+    """, (name, age, education_level, ",".join(subject_list), daily_hours, deadline, learning_goals,
+          email.lower().strip() if email else None, pw_hash))
     uid = c.fetchone()["uid"]
     conn.commit()
     conn.close()
     return uid
+
+def get_profile_by_email(email: str, password: str):
+    """Lookup profile by email and verify password. Returns profile dict or None."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM learner_profile WHERE LOWER(email)=%s", (email.lower().strip(),))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return None
+    row = dict(row)
+    stored_hash = row.get("password_hash") or ""
+    if not stored_hash or not verify_password(password, stored_hash):
+        return None
+    return row
 
 
 def get_profile(uid):
@@ -426,17 +473,30 @@ def get_latest_plan(uid):
 
 # ── SUBJECT TOPICS ────────────────────────────────────────────────────────────
 
+def _resolve_subject_name(c, subject):
+    """Return the stored subject name that matches case-insensitively, or subject itself if new."""
+    c.execute(
+        "SELECT subject FROM subject_topics WHERE LOWER(subject)=LOWER(%s) "
+        "GROUP BY subject ORDER BY COUNT(*) DESC LIMIT 1",
+        (subject.strip(),)
+    )
+    row = c.fetchone()
+    return row["subject"] if row else subject.strip()
+
+
 def save_topics(subject, topics):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("DELETE FROM subject_topics WHERE subject=%s", (subject,))
+    canonical = _resolve_subject_name(c, subject)
+    # Delete only this subject (exact canonical name)
+    c.execute("DELETE FROM subject_topics WHERE subject=%s", (canonical,))
     for i, topic in enumerate(topics):
         if topic.strip():
             c.execute("""
                 INSERT INTO subject_topics (subject, topic, position)
                 VALUES (%s, %s, %s)
                 ON CONFLICT (subject, topic) DO NOTHING
-            """, (subject, topic.strip(), i))
+            """, (canonical, topic.strip(), i))
     conn.commit()
     conn.close()
 
@@ -444,9 +504,10 @@ def save_topics(subject, topics):
 def get_topics(subject):
     conn = get_connection()
     c = conn.cursor()
+    canonical = _resolve_subject_name(c, subject)
     c.execute(
         "SELECT topic FROM subject_topics WHERE subject=%s ORDER BY position",
-        (subject,)
+        (canonical,)
     )
     rows = c.fetchall()
     conn.close()
@@ -456,7 +517,10 @@ def get_topics(subject):
 def topics_exist(subject):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) as c FROM subject_topics WHERE subject=%s", (subject,))
+    c.execute(
+        "SELECT COUNT(*) as c FROM subject_topics WHERE LOWER(subject)=LOWER(%s)",
+        (subject.strip(),)
+    )
     count = c.fetchone()["c"]
     conn.close()
     return count > 0

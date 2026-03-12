@@ -315,7 +315,11 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
 
-            topics = get_topics(subject)
+            # Cache topics list — doesn't change during a session
+            _ck_topics = f"_cache_topics_{subject}"
+            if _ck_topics not in st.session_state:
+                st.session_state[_ck_topics] = get_topics(subject)
+            topics = st.session_state[_ck_topics]
 
             if not topics:
                 st.markdown('<div class="status-missing">⚠️ No topics — upload PDF first</div>', unsafe_allow_html=True)
@@ -351,7 +355,10 @@ with tab1:
             """, unsafe_allow_html=True)
 
             # Weak topics
-            weak = get_error_topics(uid, subject)
+            _ck_weak = f"_cache_weak_{uid}_{subject}"
+            if _ck_weak not in st.session_state:
+                st.session_state[_ck_weak] = get_error_topics(uid, subject)
+            weak = st.session_state[_ck_weak]
             if weak:
                 st.divider()
                 st.markdown('<div class="sidebar-label">Weak Topics</div>', unsafe_allow_html=True)
@@ -377,7 +384,14 @@ with tab1:
 
             # ── Knowledge Graph Status ────────────────────────────────────────────────
             st.divider()
-            kg = get_or_build_kg(subject, get_topics(subject), _get_groq_client()) if get_topics(subject) else None
+            _ck_t = f"_cache_topics_{subject}"
+            _ck_kg = f"_cache_kg_{subject}"
+            if _ck_t not in st.session_state:
+                st.session_state[_ck_t] = get_topics(subject)
+            _side_topics = st.session_state[_ck_t]
+            if _side_topics and _ck_kg not in st.session_state:
+                st.session_state[_ck_kg] = get_or_build_kg(subject, _side_topics, _get_groq_client())
+            kg = st.session_state.get(_ck_kg)
             render_kg_status(kg, subject)
 
         # ── MAIN: Chat + AI features ──────────────────────────────────────────────────
@@ -493,12 +507,19 @@ with tab1:
                     return
 
                 with st.chat_message("assistant"):
-                    with st.spinner("Searching syllabus and generating answer..."):
-                        summaries   = get_subject_summary(uid)
-                        mastery     = next((s["strength_label"] for s in summaries
-                                            if s["subject"] == subject), "Moderate")
-                        weak_topics = get_error_topics(uid, subject)
-                        m_idx       = get_ael_modality(uid, subject, selected_topic)
+                    with st.spinner("Thinking..."):
+                        # ── Cache slow DB calls per subject (ttl=60s) ─────────────────
+                        _cache_key_sum  = f"_cache_summary_{uid}_{subject}"
+                        _cache_key_weak = f"_cache_weak_{uid}_{subject}"
+                        if _cache_key_sum not in st.session_state:
+                            st.session_state[_cache_key_sum]  = get_subject_summary(uid)
+                            st.session_state[_cache_key_weak] = get_error_topics(uid, subject)
+                        summaries   = st.session_state[_cache_key_sum]
+                        weak_topics = st.session_state[_cache_key_weak]
+
+                        mastery = next((s["strength_label"] for s in summaries
+                                        if s["subject"] == subject), "Moderate")
+                        m_idx   = get_ael_modality(uid, subject, selected_topic)
 
                         chunks  = retrieve_chunks(subject, q, weak_topics=weak_topics, mastery_level=mastery)
                         context = format_context(chunks)
@@ -519,10 +540,18 @@ with tab1:
                                 })
 
                         # ── KG: build context for this topic ──────────────────────────
-                        _kg = get_or_build_kg(subject, get_topics(subject), _get_groq_client()) if get_topics(subject) else None
-                        _mastered = [t for t in get_topics(subject)
-                                     if next((s["avg_accuracy"] for s in summaries
-                                              if s["subject"] == subject), 0) >= 75]
+                        _cache_key_topics = f"_cache_topics_{subject}"
+                        _cache_key_kg     = f"_cache_kg_{subject}"
+                        if _cache_key_topics not in st.session_state:
+                            st.session_state[_cache_key_topics] = get_topics(subject)
+                        _topics_list = st.session_state[_cache_key_topics]
+
+                        if _topics_list and _cache_key_kg not in st.session_state:
+                            st.session_state[_cache_key_kg] = get_or_build_kg(subject, _topics_list, _get_groq_client())
+                        _kg = st.session_state.get(_cache_key_kg)
+
+                        _subj_acc = next((s["avg_accuracy"] for s in summaries if s["subject"] == subject), 0)
+                        _mastered = [t for t in _topics_list if _subj_acc >= 75]
                         kg_context = build_kg_context(_kg, selected_topic, _mastered) if _kg else ""
 
                         # ── Emotion: record text signal NOW (before LLM) ─────────────
